@@ -186,10 +186,11 @@ const AIChatAssistant = () => {
       }
     } catch (error: any) {
       const errorMessage =
-        error.response?.data?.error || "Sorry, an unknown error occurred.";
+        error.response?.data?.error ||
+        "Thank you for visiting our website. Kindly register or login to explore our services.";
       setMessages((prev) => [
         ...prev,
-        { sender: "AI", content: `Error: ${errorMessage}` },
+        { sender: "AI", content: `${errorMessage}` },
       ]);
     } finally {
       setIsLoading(false);

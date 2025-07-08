@@ -70,7 +70,8 @@ const RegisterPage = () => {
   };
 
   const handleSocialLogin = (provider: "google" | "facebook") => {
-    window.location.href = `${apiClient.defaults.baseURL}/api/auth/${provider}`;
+    // Corrected URL construction
+    window.location.href = `${apiClient.defaults.baseURL}/auth/${provider}`;
   };
 
   // While checking auth status, show a loading indicator
