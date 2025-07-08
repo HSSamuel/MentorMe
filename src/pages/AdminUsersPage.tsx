@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import apiClient from "../api/axios";
 import AssignMentorModal from "../components/AssignMentorModal";
+import toast from "react-hot-toast";
 
 const AdminUsersPage = () => {
   const [users, setUsers] = useState<any[]>([]);
@@ -52,8 +53,9 @@ const AdminUsersPage = () => {
           user.id === userId ? { ...user, role: response.data.role } : user
         )
       );
+      toast.success("User role updated!");
     } catch (err) {
-      alert("Failed to update role.");
+      toast.error("Failed to update role.");
       console.error(err);
     }
   };
@@ -75,10 +77,10 @@ const AdminUsersPage = () => {
         menteeId: selectedMentee.id,
         mentorId,
       });
-      alert("Mentor assigned successfully!");
+      toast.success("Mentor assigned successfully!");
       handleCloseModal();
     } catch (err) {
-      alert("Failed to assign mentor.");
+      toast.error("Failed to assign mentor.");
       console.error(err);
     }
   };
@@ -88,7 +90,7 @@ const AdminUsersPage = () => {
   if (error) return <p className="text-center text-red-500">{error}</p>;
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Manage Users</h1>
       <div className="mb-6">
         <input

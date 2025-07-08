@@ -30,28 +30,35 @@ const GoalManagement = ({ mentorshipId }: { mentorshipId: string }) => {
     try {
       if (editingGoal) {
         // Update existing goal
-        await apiClient.put(`/goals/${editingGoal.id}`, goalData);
+        const { data: updatedGoal } = await apiClient.put(
+          `/goals/${editingGoal.id}`,
+          goalData
+        );
+        setGoals(goals.map((g) => (g.id === updatedGoal.id ? updatedGoal : g)));
+        toast.success("Goal updated!");
       } else {
         // Create new goal
-        await apiClient.post("/goals", {
+        const { data: newGoal } = await apiClient.post("/goals", {
           ...goalData,
           mentorshipRequestId: mentorshipId,
         });
+        setGoals([...goals, newGoal]);
+        toast.success("Goal added!");
       }
-      fetchGoals(); // Refetch goals to show the latest data
       setIsModalOpen(false);
       setEditingGoal(null);
     } catch (error) {
       console.error("Failed to save goal:", error);
+      toast.error("Failed to save goal.");
     }
   };
 
   const handleToggleComplete = async (goal: any) => {
     try {
-      await apiClient.put(`/goals/${goal.id}`, {
+      const { data: updatedGoal } = await apiClient.put(`/goals/${goal.id}`, {
         isCompleted: !goal.isCompleted,
       });
-      fetchGoals();
+      setGoals(goals.map((g) => (g.id === updatedGoal.id ? updatedGoal : g)));
     } catch (error) {
       console.error("Failed to update goal status:", error);
     }
@@ -61,9 +68,11 @@ const GoalManagement = ({ mentorshipId }: { mentorshipId: string }) => {
     if (window.confirm("Are you sure you want to delete this goal?")) {
       try {
         await apiClient.delete(`/goals/${goalId}`);
-        fetchGoals();
+        setGoals(goals.filter((g) => g.id !== goalId));
+        toast.success("Goal deleted.");
       } catch (error) {
         console.error("Failed to delete goal:", error);
+        toast.error("Failed to delete goal.");
       }
     }
   };

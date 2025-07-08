@@ -28,16 +28,22 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (token: string) => Promise<void>;
+  login: (token: string, from: string) => Promise<void>;
   logout: () => void;
   refetchUser: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// A helper function to manage the refresh token in a cookie
+const getRefreshToken = () => {
+  const cookies = document.cookie.split("; ");
+  const refreshTokenCookie = cookies.find((row) =>
+    row.startsWith("refreshToken=")
+  );
+  return refreshTokenCookie ? refreshTokenCookie.split("=")[1] : null;
+};
+
 const setRefreshTokenCookie = (token: string) => {
-  // In a real app, 'secure: true' should be used in production
   document.cookie = `refreshToken=${token}; path=/; max-age=604800; SameSite=Lax;`;
 };
 
@@ -48,59 +54,67 @@ const clearRefreshTokenCookie = () => {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null); // Token is now in-memory
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
+  // Encapsulated function to fetch user data
   const fetchUser = async (authToken: string) => {
     apiClient.defaults.headers.common["Authorization"] = `Bearer ${authToken}`;
     try {
-      const response = await apiClient.get("/auth/me");
-      setUser(response.data);
+      const { data } = await apiClient.get("/auth/me");
+      setUser(data);
     } catch (error) {
       console.error("Auth token is invalid, logging out.", error);
-      logout(); // Centralize logout logic
-    } finally {
-      setIsLoading(false);
+      // Force a full logout if the token is bad
+      logout();
     }
   };
 
   useEffect(() => {
-    // On initial load, try to "refresh" the session if a refresh token exists
-    const refreshToken = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("refreshToken="))
-      ?.split("=")[1];
-
-    if (refreshToken) {
-      // In a real app, you would have a '/auth/refresh' endpoint.
-      // We will simulate this by re-using the existing JWT for demonstration.
-      // This structure shows how a real refresh flow would be initiated.
-      setToken(refreshToken);
-      fetchUser(refreshToken);
-    } else {
+    const initAuth = async () => {
+      const refreshToken = getRefreshToken();
+      if (refreshToken) {
+        setToken(refreshToken);
+        await fetchUser(refreshToken);
+      }
       setIsLoading(false);
-    }
+    };
+    initAuth();
   }, []);
 
-  const login = async (newToken: string) => {
+  const login = async (newToken: string, from: string) => {
+    setIsLoading(true);
+    // 1. Set the new token and cookie
     setToken(newToken);
-    setRefreshTokenCookie(newToken); // Use the JWT as a refresh token for this simulation
+    setRefreshTokenCookie(newToken);
+
+    // 2. Fetch the new user's data
     await fetchUser(newToken);
+
+    // 3. Navigate only after everything is loaded
+    navigate(from, { replace: true });
+    setIsLoading(false);
   };
 
   const logout = () => {
-    clearRefreshTokenCookie();
-    setToken(null);
+    // Clear everything possible
     setUser(null);
+    setToken(null);
+    clearRefreshTokenCookie();
+    localStorage.clear(); // Clear all localStorage
+    sessionStorage.clear(); // Clear all sessionStorage
     delete apiClient.defaults.headers.common["Authorization"];
-    navigate("/login");
+
+    // A hard redirect to the login page is the most reliable way to clear all state
+    window.location.href = "/login";
   };
 
-  const refetchUser = () => {
+  const refetchUser = async () => {
     if (token) {
       setIsLoading(true);
-      fetchUser(token);
+      await fetchUser(token);
+      setIsLoading(false);
     }
   };
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import apiClient from "../api/axios";
 import { Link } from "react-router-dom";
+import StatCardSkeleton from "../components/StatCardSkeleton";
 
 // Icon components
 const UsersIcon = () => (
@@ -80,7 +81,7 @@ const mentorTips = [
 ];
 
 const DashboardPage = () => {
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [nextSession, setNextSession] = useState<any>(null);
@@ -88,19 +89,31 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      if (!user) return;
+      if (isAuthLoading || !user) {
+        return;
+      }
+
       setIsLoading(true);
       try {
-        let statsResponse, sessionsResponse;
+        let statsPromise, sessionsPromise;
+
         if (user.role === "ADMIN") {
-          statsResponse = await apiClient.get("/admin/stats");
+          statsPromise = apiClient.get("/admin/stats");
         } else if (user.role === "MENTOR") {
-          statsResponse = await apiClient.get(`/users/mentor/${user.id}/stats`);
-          sessionsResponse = await apiClient.get("/sessions/mentor");
+          statsPromise = apiClient.get(`/users/mentor/${user.id}/stats`);
+          sessionsPromise = apiClient.get("/sessions/mentor");
         } else {
-          statsResponse = await apiClient.get("/users/mentee/stats");
-          sessionsResponse = await apiClient.get("/sessions/mentee");
+          statsPromise = apiClient.get("/users/mentee/stats");
+          sessionsPromise = apiClient.get("/sessions/mentee");
         }
+
+        const responses = await Promise.all(
+          [statsPromise, sessionsPromise].filter(Boolean)
+        );
+
+        const statsResponse = responses[0];
+        const sessionsResponse = responses[1];
+
         setStats(statsResponse.data);
 
         if (sessionsResponse?.data?.length > 0) {
@@ -123,7 +136,20 @@ const DashboardPage = () => {
 
     fetchDashboardData();
     setTipOfTheDay(mentorTips[Math.floor(Math.random() * mentorTips.length)]);
-  }, [user]);
+  }, [user, isAuthLoading]);
+
+  const getAvatarUrl = () => {
+    if (!user || !user.profile?.avatarUrl) {
+      return `https://ui-avatars.com/api/?name=${
+        user?.profile?.name || user?.email || "User"
+      }&background=random&color=fff`;
+    }
+    const url = user.profile.avatarUrl;
+    if (url.startsWith("http")) {
+      return url;
+    }
+    return `${apiClient.defaults.baseURL}${url}`.replace("/api", "");
+  };
 
   const StatCard = ({
     title,
@@ -339,8 +365,10 @@ const DashboardPage = () => {
   );
 
   const renderLoading = () => (
-    <div className="text-center py-10">
-      <p className="text-gray-500">Loading dashboard data...</p>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <StatCardSkeleton />
+      <StatCardSkeleton />
+      <StatCardSkeleton />
     </div>
   );
 
@@ -362,47 +390,67 @@ const DashboardPage = () => {
   };
 
   return (
-    <div className="gradient-background py-8 -m-8 px-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">
-        Welcome back,{" "}
-        <span className="animate-rolling-color">
-          {user?.profile?.name || user?.email.split("@")[0]}!
-        </span>
-      </h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {isAuthLoading ? (
+        renderLoading()
+      ) : user ? (
+        <>
+          <div className="bg-white/70 backdrop-blur-sm rounded-lg shadow-lg p-6 sm:p-8 mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                Welcome back, {isLoading && renderLoading()}{" "}
+                {/* Use the new skeleton loader */}
+                <span className="animate-rolling-color">
+                  {user.profile?.name || user.email.split("@")[0]}!
+                </span>
+              </h1>
 
-      {user?.role && (
-        <span className="inline-block bg-indigo-100 text-indigo-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full mb-6">
-          You are logged in as a {formatRole(user.role)}
-        </span>
+              {user.role && (
+                <span className="inline-block bg-indigo-100 text-indigo-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">
+                  You are logged in as a {formatRole(user.role)}
+                </span>
+              )}
+
+              <p className="text-gray-600 mt-2">
+                Here's a summary of your activity on the platform.
+              </p>
+            </div>
+            <img
+              src={getAvatarUrl()}
+              alt="Profile"
+              className="hidden sm:block h-24 w-24 rounded-full object-cover ring-4 ring-white/50"
+            />
+          </div>
+
+          {isLoading && !stats ? renderLoading() : null}
+          {!isLoading && !stats && !isAuthLoading ? renderError() : null}
+
+          {!isLoading &&
+            stats &&
+            stats.menteeCount === 0 &&
+            stats.pendingRequests === 0 &&
+            stats.upcomingSessions === 0 && <GetStartedGuide />}
+
+          {!isLoading && nextSession && <NextSessionCard />}
+
+          {!isLoading && stats && (
+            <div className="mt-8">
+              {user.role === "ADMIN" && renderAdminDashboard()}
+              {user.role === "MENTOR" && renderMentorDashboard()}
+              {user.role === "MENTEE" && renderMenteeDashboard()}
+            </div>
+          )}
+
+          <div className="mt-8 bg-white/70 backdrop-blur-sm rounded-xl p-6 shadow-lg">
+            <h4 className="font-semibold text-gray-600">
+              Mentor Tip of the Day
+            </h4>
+            <p className="text-gray-800 italic">"{tipOfTheDay}"</p>
+          </div>
+        </>
+      ) : (
+        renderError()
       )}
-
-      <p className="text-gray-600 mb-8 animate-rolling-color">
-        Here's a summary of your activity on the platform.
-      </p>
-
-      {isLoading && renderLoading()}
-      {!isLoading && !stats && renderError()}
-
-      {!isLoading &&
-        stats &&
-        stats.menteeCount === 0 &&
-        stats.pendingRequests === 0 &&
-        stats.upcomingSessions === 0 && <GetStartedGuide />}
-
-      {!isLoading && nextSession && <NextSessionCard />}
-
-      {!isLoading && stats && (
-        <div className="mt-8">
-          {user?.role === "ADMIN" && renderAdminDashboard()}
-          {user?.role === "MENTOR" && renderMentorDashboard()}
-          {user?.role === "MENTEE" && renderMenteeDashboard()}
-        </div>
-      )}
-
-      <div className="mt-8 bg-white/70 backdrop-blur-sm rounded-xl p-6 shadow-lg">
-        <h4 className="font-semibold text-gray-600">Mentor Tip of the Day</h4>
-        <p className="text-gray-800 italic">"{tipOfTheDay}"</p>
-      </div>
     </div>
   );
 };

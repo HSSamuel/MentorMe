@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import apiClient from "../api/axios";
 import { Link } from "react-router-dom";
-import GoalManagement from "../components/GoalManagement"; // We will create this next
+import GoalManagement from "../components/GoalManagement";
 
 const MyMentorsPage = () => {
   const [matches, setMatches] = useState<any[]>([]);
@@ -34,7 +34,7 @@ const MyMentorsPage = () => {
     return <p className="text-center text-gray-500">Loading your mentors...</p>;
 
   return (
-    <div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-3xl font-bold text-gray-900 mb-6">My Mentors</h1>
       {matches.length > 0 ? (
         <div className="flex flex-col md:flex-row gap-8">

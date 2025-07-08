@@ -69,11 +69,24 @@ const SetAvailabilityPage = () => {
     e.preventDefault();
     setError("");
     setSuccess("");
+
+    for (const slot of availability) {
+      if (slot.startTime >= slot.endTime) {
+        setError(
+          `Error in ${slot.day}'s time slot: End time must be after start time.`
+        );
+        return;
+      }
+    }
+
     try {
       await apiClient.post("/sessions/availability", { availability });
       setSuccess("Your availability has been updated successfully!");
-    } catch (err) {
-      setError("Failed to save availability. Please check your time slots.");
+    } catch (err: any) {
+      const errorMessage =
+        err.response?.data?.message ||
+        "Failed to save availability. Please try again.";
+      setError(errorMessage);
     }
   };
 
@@ -83,7 +96,7 @@ const SetAvailabilityPage = () => {
     );
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-4 sm:mb-0">
           Set Your Weekly Availability

@@ -38,7 +38,8 @@ const Layout = ({ children }: LayoutProps) => {
 
   return (
     <div className="min-h-screen">
-      <Navbar />
+      {/* Pass the isAuthPage prop to the Navbar */}
+      <Navbar isAuthPage={isAuthPage} />
       <main>
         <PageWrapper>{children}</PageWrapper>
       </main>

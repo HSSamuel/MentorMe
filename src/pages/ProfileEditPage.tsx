@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import apiClient from "../api/axios";
 import toast from "react-hot-toast";
@@ -21,6 +21,46 @@ const availableSkills = [
   "Cloud Computing",
   "Quantum Computing",
 ];
+
+const ProfileCompleteness = ({
+  name,
+  bio,
+  skills,
+  goals,
+}: {
+  name: string;
+  bio: string;
+  skills: string[];
+  goals: string;
+}) => {
+  const [completion, setCompletion] = useState(0);
+
+  useEffect(() => {
+    let score = 0;
+    if (name) score += 25;
+    if (bio) score += 25;
+    if (skills.length > 0) score += 25;
+    if (goals) score += 25;
+    setCompletion(score);
+  }, [name, bio, skills, goals]);
+
+  return (
+    <div className="mb-6">
+      <div className="flex justify-between mb-1">
+        <span className="text-base font-medium text-blue-700">
+          Profile Completeness
+        </span>
+        <span className="text-sm font-medium text-blue-700">{completion}%</span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-2.5">
+        <div
+          className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
+          style={{ width: `${completion}%` }}
+        ></div>
+      </div>
+    </div>
+  );
+};
 
 const ProfileEditPage = () => {
   const { user, refetchUser, token } = useAuth();
@@ -46,12 +86,12 @@ const ProfileEditPage = () => {
         goals: user.profile.goals || "",
       });
       if (user.profile.avatarUrl) {
-        setPreview(
-          `${apiClient.defaults.baseURL}${user.profile.avatarUrl}`.replace(
-            "/api",
-            ""
-          )
-        );
+        const url = user.profile.avatarUrl;
+        if (url.startsWith("http")) {
+          setPreview(url);
+        } else {
+          setPreview(`${apiClient.defaults.baseURL}${url}`.replace("/api", ""));
+        }
       }
     }
   }, [user]);
@@ -102,184 +142,203 @@ const ProfileEditPage = () => {
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start"
-    >
-      {/* --- Start of Beautified Left Column --- */}
-      <div className="lg:col-span-1 space-y-8 lg:sticky lg:top-8">
-        <div className="bg-white p-6 rounded-lg shadow-lg text-center">
-          <div className="relative w-32 h-32 mx-auto group">
-            <img
-              src={
-                preview ||
-                `https://ui-avatars.com/api/?name=${
-                  formData.name || "User"
-                }&background=random&color=fff&size=128`
-              }
-              alt="Profile Preview"
-              className="w-full h-full rounded-full object-cover border-4 border-white shadow-md"
-            />
-            <label
-              htmlFor="avatar-upload"
-              className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-full cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <svg
-                className="w-8 h-8 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+    <div className="gradient-background py-8 -m-8 px-8 min-h-screen">
+      <form
+        onSubmit={handleSubmit}
+        className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 items-start"
+      >
+        {/* --- Left Column --- */}
+        <div className="lg:col-span-1 space-y-8 lg:sticky lg:top-8">
+          <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-6 rounded-lg shadow-lg text-center">
+            <div className="relative w-32 h-32 mx-auto group">
+              <img
+                src={
+                  preview ||
+                  `https://ui-avatars.com/api/?name=${
+                    formData.name || "User"
+                  }&background=random&color=fff&size=128`
+                }
+                alt="Profile Preview"
+                className="w-full h-full rounded-full object-cover border-4 border-white shadow-md"
+              />
+              <label
+                htmlFor="avatar-upload"
+                className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-full cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
-            </label>
-            <input
-              type="file"
-              id="avatar-upload"
-              className="hidden"
-              accept="image/*"
-              onChange={handleFileChange}
-            />
-          </div>
-          <h2 className="mt-4 text-2xl font-bold text-gray-800 truncate">
-            {formData.name}
-          </h2>
-          <p className="text-gray-500 truncate">{user?.email}</p>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-lg">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">
-            Integrations
-          </h3>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-700">Google Calendar</p>
-              <p
-                className={`text-sm ${
-                  isCalendarConnected ? "text-green-600" : "text-gray-500"
-                }`}
-              >
-                {isCalendarConnected ? "Connected" : "Not Connected"}
-              </p>
+                <svg
+                  className="w-8 h-8 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+              </label>
+              <input
+                type="file"
+                id="avatar-upload"
+                className="hidden"
+                accept="image/*"
+                onChange={handleFileChange}
+              />
             </div>
-            {!isCalendarConnected && (
-              <button
-                type="button"
-                onClick={handleConnectCalendar}
-                className="px-3 py-1.5 text-xs font-medium text-white bg-gray-700 rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
-              >
-                Connect
-              </button>
+            <h2 className="mt-4 text-2xl font-bold text-white truncate">
+              {formData.name}
+            </h2>
+            <p className="text-blue-200 truncate">{user?.email}</p>
+            {user?.role === "MENTOR" && (
+              <div className="mt-4 border-t border-blue-400 pt-4">
+                <Link
+                  to={`/mentor/${user?.id}`}
+                  target="_blank"
+                  className="inline-block rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/30"
+                >
+                  View Public Profile &rarr;
+                </Link>
+              </div>
             )}
           </div>
-        </div>
-      </div>
-      {/* --- End of Beautified Left Column --- */}
 
-      {/* Right Column: Profile Details Form */}
-      <div className="lg:col-span-2 bg-white p-8 rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold text-gray-800 mb-6">
-          Edit Your Profile
-        </h2>
-        <div className="space-y-6">
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Full Name
-            </label>
-            <input
-              type="text"
-              id="name"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="bio"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Short Bio
-            </label>
-            <textarea
-              id="bio"
-              value={formData.bio}
-              onChange={(e) =>
-                setFormData({ ...formData, bio: e.target.value })
-              }
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              rows={4}
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="goals"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Your Goals
-            </label>
-            <input
-              type="text"
-              id="goals"
-              placeholder="e.g., Improve product design skills"
-              value={formData.goals}
-              onChange={(e) =>
-                setFormData({ ...formData, goals: e.target.value })
-              }
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Skills
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {availableSkills.map((skill) => {
-                const isSelected = formData.skills.includes(skill);
-                return (
-                  <button
-                    type="button"
-                    key={skill}
-                    onClick={() => handleSkillChange(skill)}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors ${
-                      isSelected
-                        ? "bg-blue-600 text-white shadow-md"
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    {skill}
-                  </button>
-                );
-              })}
+          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-lg">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              Integrations
+            </h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-700">Google Calendar</p>
+                <p
+                  className={`text-sm ${
+                    isCalendarConnected ? "text-green-600" : "text-gray-500"
+                  }`}
+                >
+                  {isCalendarConnected ? "Connected" : "Not Connected"}
+                </p>
+              </div>
+              {!isCalendarConnected && (
+                <button
+                  type="button"
+                  onClick={handleConnectCalendar}
+                  className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Connect
+                </button>
+              )}
             </div>
           </div>
-          <div className="pt-4 border-t border-gray-200">
-            <button
-              type="submit"
-              className="w-full px-6 py-3 border-none rounded-lg bg-blue-600 text-white text-lg font-semibold cursor-pointer transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Save Profile
-            </button>
+        </div>
+
+        {/* --- Right Column --- */}
+        <div className="lg:col-span-2 bg-white/80 backdrop-blur-sm p-8 rounded-lg shadow-lg">
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            Edit Your Profile
+          </h2>
+          <p className="text-sm text-gray-500 mb-6">
+            A complete profile helps you get better matches.
+          </p>
+
+          <ProfileCompleteness {...formData} />
+
+          <div className="space-y-6">
+            <div>
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Full Name
+              </label>
+              <input
+                type="text"
+                id="name"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="bio"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Short Bio
+              </label>
+              <textarea
+                id="bio"
+                value={formData.bio}
+                onChange={(e) =>
+                  setFormData({ ...formData, bio: e.target.value })
+                }
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                rows={4}
+                placeholder="Tell us a bit about yourself, your experience, and what you can help with."
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="goals"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Your Goals
+              </label>
+              <input
+                type="text"
+                id="goals"
+                placeholder="e.g., Improve product design skills, land a senior role"
+                value={formData.goals}
+                onChange={(e) =>
+                  setFormData({ ...formData, goals: e.target.value })
+                }
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Skills
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {availableSkills.map((skill) => {
+                  const isSelected = formData.skills.includes(skill);
+                  return (
+                    <button
+                      type="button"
+                      key={skill}
+                      onClick={() => handleSkillChange(skill)}
+                      className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors ${
+                        isSelected
+                          ? "bg-blue-600 text-white shadow-md"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      {skill}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="pt-4 border-t border-gray-200">
+              <button
+                type="submit"
+                className="w-full px-6 py-3 border-none rounded-lg bg-green-600 text-white text-lg font-semibold cursor-pointer transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                Save Profile
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </form>
+      </form>
+    </div>
   );
 };
 

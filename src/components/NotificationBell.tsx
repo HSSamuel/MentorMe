@@ -3,23 +3,17 @@ import { useAuth } from "../contexts/AuthContext";
 import apiClient from "../api/axios";
 import { io, Socket } from "socket.io-client";
 import NotificationPanel from "./NotificationPanel";
+import toast from "react-hot-toast";
 
 const NotificationBell = () => {
-  // Custom hook to get the current user and their authentication token.
   const { user, token } = useAuth();
-  // State to hold the list of notifications.
   const [notifications, setNotifications] = useState<any[]>([]);
-  // State to control the visibility of the notification panel.
   const [isOpen, setIsOpen] = useState(false);
-  // Ref to hold the WebSocket connection instance.
   const socketRef = useRef<Socket | null>(null);
-  // Ref to the main div of the component, used to detect outside clicks.
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Calculate the number of unread notifications.
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  // Function to fetch all notifications from the backend API.
   const fetchNotifications = async () => {
     try {
       const response = await apiClient.get("/notifications");
@@ -29,32 +23,33 @@ const NotificationBell = () => {
     }
   };
 
-  // This effect runs once to fetch initial notifications and set up the WebSocket connection.
   useEffect(() => {
     fetchNotifications();
 
-    // Only establish a socket connection if the user is authenticated.
     if (token) {
-      // Connect to the backend WebSocket server, passing the auth token for authentication.
       socketRef.current = io(import.meta.env.VITE_API_BASE_URL, {
         auth: { token },
       });
 
-      // Listen for 'newNotification' events from the server.
       socketRef.current.on("newNotification", (newNotification) => {
-        // When a new notification arrives, add it to the top of the list.
         setNotifications((prev) => [newNotification, ...prev]);
+        toast.info(`New notification: ${newNotification.message}`);
       });
 
-      // Cleanup function: disconnect the socket when the component is unmounted.
+      socketRef.current.on("goalCompleted", (data) => {
+        fetchNotifications();
+      });
+
+      socketRef.current.on("availabilityUpdated", (data) => {
+        fetchNotifications();
+      });
+
       return () => {
         socketRef.current?.disconnect();
       };
     }
   }, [token]);
 
-  // This effect adds a click listener to the document to close the notification panel
-  // when the user clicks outside of it.
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -64,20 +59,15 @@ const NotificationBell = () => {
         setIsOpen(false);
       }
     }
-    // Add the event listener when the component mounts.
     document.addEventListener("mousedown", handleClickOutside);
-    // Remove the event listener when the component unmounts.
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [wrapperRef]);
 
-  // Function to mark a single notification as read.
   const handleMarkAsRead = async (id: string) => {
     try {
-      // Send a request to the backend to update the notification's status.
       await apiClient.put(`/notifications/${id}/read`);
-      // Update the local state to reflect the change immediately.
       setNotifications(
         notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n))
       );
@@ -86,12 +76,9 @@ const NotificationBell = () => {
     }
   };
 
-  // Function to mark all notifications as read.
   const handleMarkAllAsRead = async () => {
     try {
-      // Send a request to the backend to update all notifications.
       await apiClient.put("/notifications/read-all");
-      // Update the local state to mark all notifications as read.
       setNotifications(notifications.map((n) => ({ ...n, isRead: true })));
     } catch (error) {
       console.error("Failed to mark all as read:", error);
@@ -103,7 +90,7 @@ const NotificationBell = () => {
       {/* The bell icon button that toggles the notification panel */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+        className="relative p-2 text-white opacity-80 hover:opacity-100 focus:outline-none transition-opacity"
       >
         <svg
           className="h-6 w-6"
@@ -120,7 +107,7 @@ const NotificationBell = () => {
         </svg>
         {/* A red dot that appears when there are unread notifications */}
         {unreadCount > 0 && (
-          <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+          <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
         )}
       </button>
 

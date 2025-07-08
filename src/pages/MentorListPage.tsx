@@ -9,6 +9,10 @@ const MentorListPage = () => {
   const [filteredMentors, setFilteredMentors] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   // Filter states
   const [selectedSkill, setSelectedSkill] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -19,10 +23,15 @@ const MentorListPage = () => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const mentorsRes = await apiClient.get("/users/mentors");
-        const skillsRes = await apiClient.get("/users/skills");
-        setMentors(mentorsRes.data);
-        setFilteredMentors(mentorsRes.data); // Initially show all
+        // Fetch paginated mentors and all skills
+        const [mentorsRes, skillsRes] = await Promise.all([
+          apiClient.get(`/users/mentors?page=${currentPage}&limit=9`),
+          apiClient.get("/users/skills"),
+        ]);
+
+        setMentors(mentorsRes.data.mentors);
+        setFilteredMentors(mentorsRes.data.mentors);
+        setTotalPages(mentorsRes.data.totalPages);
         setAllSkills(skillsRes.data);
       } catch (error) {
         console.error("Failed to fetch data:", error);
@@ -31,7 +40,7 @@ const MentorListPage = () => {
       }
     };
     fetchData();
-  }, []);
+  }, [currentPage]);
 
   useEffect(() => {
     let result = mentors;
@@ -79,17 +88,41 @@ const MentorListPage = () => {
         onLanguageChange={setLanguage}
       />
       <div className="flex-1">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6 text-center">
           Find Your Mentor
         </h1>
         {isLoading ? (
           <p className="text-gray-500">Loading mentors...</p>
         ) : filteredMentors.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filteredMentors.map((mentor: any) => (
-              <MentorCard key={mentor.id} mentor={mentor} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filteredMentors.map((mentor: any) => (
+                <MentorCard key={mentor.id} mentor={mentor} />
+              ))}
+            </div>
+            {/* Pagination Controls */}
+            <div className="flex justify-center items-center mt-8 gap-4">
+              <button
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-gray-700">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </>
         ) : (
           <div className="text-center py-16 px-6 bg-white rounded-lg shadow-md">
             <h3 className="text-xl font-semibold text-gray-800">
