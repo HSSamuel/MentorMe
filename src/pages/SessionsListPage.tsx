@@ -19,7 +19,7 @@ const SessionsListPage = () => {
       setIsLoading(true);
 
       let endpoint = "";
-      // Corrected: Determine the correct API endpoint based on user role
+      // Corrected: Determine the correct API endpoint based on the user's role
       if (user.role === "ADMIN") {
         endpoint = "/admin/sessions";
       } else if (user.role === "MENTOR") {
@@ -30,10 +30,10 @@ const SessionsListPage = () => {
 
       try {
         const response = await apiClient.get(endpoint);
-        // The admin endpoint returns data in a different shape
+        // The admin endpoint returns data in a different shape ({ sessions: [...] })
         const sessionData =
           user.role === "ADMIN" ? response.data.sessions : response.data;
-        setSessions(sessionData);
+        setSessions(sessionData || []);
       } catch (err: any) {
         const errorMessage =
           err.response?.data?.message ||
@@ -64,9 +64,20 @@ const SessionsListPage = () => {
   const pastSessions = sessions.filter((s) => new Date(s.date) < now);
 
   const renderSessionCard = (session: any) => {
-    const otherUser = user?.role === "MENTOR" ? session.mentee : session.mentor;
     const sessionDate = new Date(session.date);
     const hasFeedback = session.rating || session.feedback;
+
+    // Determine who the "other" user is, or show both for Admin view
+    let sessionTitle = "Session";
+    if (user?.role === "ADMIN") {
+      sessionTitle = `Session: ${session.mentor?.profile?.name || "N/A"} & ${
+        session.mentee?.profile?.name || "N/A"
+      }`;
+    } else {
+      const otherUser =
+        user?.role === "MENTOR" ? session.mentee : session.mentor;
+      sessionTitle = `Session with ${otherUser?.profile?.name || "a user"}`;
+    }
 
     return (
       <div
@@ -77,8 +88,7 @@ const SessionsListPage = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
             <div>
               <h4 className="text-lg font-bold text-gray-800">
-                {/* Handle cases where otherUser might not exist */}
-                Session with {otherUser?.profile?.name || "a user"}
+                {sessionTitle}
               </h4>
               <p className="text-sm text-gray-500">
                 {sessionDate.toLocaleString([], {
@@ -155,7 +165,9 @@ const SessionsListPage = () => {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">My Sessions</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-6">
+        {user?.role === "ADMIN" ? "All Platform Sessions" : "My Sessions"}
+      </h1>
       <div className="mb-6 border-b border-gray-200">
         <div className="flex space-x-4">
           <TabButton
@@ -172,13 +184,13 @@ const SessionsListPage = () => {
           (upcomingSessions.length > 0 ? (
             upcomingSessions.map(renderSessionCard)
           ) : (
-            <p className="text-gray-500">You have no upcoming sessions.</p>
+            <p className="text-gray-500">There are no upcoming sessions.</p>
           ))}
         {activeTab === "past" &&
           (pastSessions.length > 0 ? (
             pastSessions.map(renderSessionCard)
           ) : (
-            <p className="text-gray-500">You have no past sessions.</p>
+            <p className="text-gray-500">There are no past sessions.</p>
           ))}
       </div>
 

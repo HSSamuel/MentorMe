@@ -1,6 +1,7 @@
 import React, { ReactNode } from "react";
 import Navbar from "./Navbar";
 import { Toaster } from "react-hot-toast";
+import AIChatAssistant from "./AIChatAssistant";
 
 interface LayoutProps {
   children: ReactNode;
@@ -15,6 +16,7 @@ const Layout = ({ children }: LayoutProps) => {
       </main>
       {/* 2. Add the Toaster component here */}
       <Toaster position="bottom-right" />
+      <AIChatAssistant />
     </div>
   );
 };
