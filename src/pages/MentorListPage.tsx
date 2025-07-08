@@ -12,6 +12,8 @@ const MentorListPage = () => {
   // Filter states
   const [selectedSkill, setSelectedSkill] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [minExperience, setMinExperience] = useState(0);
+  const [language, setLanguage] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -48,8 +50,20 @@ const MentorListPage = () => {
       );
     }
 
+    if (minExperience > 0) {
+      result = result.filter(
+        (m: any) => m.profile.yearsOfExperience >= minExperience
+      );
+    }
+
+    if (language) {
+      result = result.filter((m: any) =>
+        m.profile.languages?.includes(language)
+      );
+    }
+
     setFilteredMentors(result);
-  }, [selectedSkill, searchQuery, mentors]);
+  }, [selectedSkill, searchQuery, mentors, minExperience, language]);
 
   return (
     <div className="flex flex-col md:flex-row gap-8">
@@ -59,6 +73,10 @@ const MentorListPage = () => {
         onSkillChange={setSelectedSkill}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        minExperience={minExperience}
+        onMinExperienceChange={setMinExperience}
+        language={language}
+        onLanguageChange={setLanguage}
       />
       <div className="flex-1">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">

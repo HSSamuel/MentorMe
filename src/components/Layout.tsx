@@ -2,19 +2,46 @@ import React, { ReactNode } from "react";
 import Navbar from "./Navbar";
 import { Toaster } from "react-hot-toast";
 import AIChatAssistant from "./AIChatAssistant";
+import { useLocation } from "react-router-dom";
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 const Layout = ({ children }: LayoutProps) => {
+  const location = useLocation();
+  const authPaths = ["/login", "/register"];
+  const isAuthPage = authPaths.includes(location.pathname);
+
+  const backgroundStyle = isAuthPage
+    ? {
+        backgroundImage: "url(/src/assets/Mentoring.jpg)",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }
+    : {};
+
+  const PageWrapper = ({ children }: { children: ReactNode }) => {
+    if (isAuthPage) {
+      return (
+        <div
+          className="min-h-screen flex flex-col items-center justify-center -mt-16 pt-16"
+          style={backgroundStyle}
+        >
+          <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+          <div className="z-10">{children}</div>
+        </div>
+      );
+    }
+    return <div className="bg-gray-50">{children}</div>;
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <Navbar />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
+      <main>
+        <PageWrapper>{children}</PageWrapper>
       </main>
-      {/* 2. Add the Toaster component here */}
       <Toaster position="bottom-right" />
       <AIChatAssistant />
     </div>

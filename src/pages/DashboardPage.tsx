@@ -3,7 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import apiClient from "../api/axios";
 import { Link } from "react-router-dom";
 
-// Icon components (Heroicons, embedded as SVGs for simplicity)
+// Icon components
 const UsersIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -72,25 +72,48 @@ const InboxInIcon = () => (
   </svg>
 );
 
+const mentorTips = [
+  "The best mentorships are built on clear, regular communication. Don't be afraid to reach out!",
+  "Setting clear goals at the start of a mentorship can lead to a 70% higher success rate.",
+  "Remember to provide feedback after each session. It's the fastest way to improve.",
+  "Don't be afraid to ask questions! Every expert was once a beginner.",
+];
+
 const DashboardPage = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [nextSession, setNextSession] = useState<any>(null);
+  const [tipOfTheDay, setTipOfTheDay] = useState("");
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       if (!user) return;
       setIsLoading(true);
       try {
-        let response;
+        let statsResponse, sessionsResponse;
         if (user.role === "ADMIN") {
-          response = await apiClient.get("/admin/stats");
+          statsResponse = await apiClient.get("/admin/stats");
         } else if (user.role === "MENTOR") {
-          response = await apiClient.get(`/users/mentor/${user.id}/stats`);
+          statsResponse = await apiClient.get(`/users/mentor/${user.id}/stats`);
+          sessionsResponse = await apiClient.get("/sessions/mentor");
         } else {
-          response = await apiClient.get("/users/mentee/stats");
+          statsResponse = await apiClient.get("/users/mentee/stats");
+          sessionsResponse = await apiClient.get("/sessions/mentee");
         }
-        setStats(response.data);
+        setStats(statsResponse.data);
+
+        if (sessionsResponse?.data?.length > 0) {
+          const upcoming = sessionsResponse.data
+            .filter((s: any) => new Date(s.date) > new Date())
+            .sort(
+              (a: any, b: any) =>
+                new Date(a.date).getTime() - new Date(b.date).getTime()
+            );
+          if (upcoming.length > 0) {
+            setNextSession(upcoming[0]);
+          }
+        }
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
       } finally {
@@ -99,6 +122,7 @@ const DashboardPage = () => {
     };
 
     fetchDashboardData();
+    setTipOfTheDay(mentorTips[Math.floor(Math.random() * mentorTips.length)]);
   }, [user]);
 
   const StatCard = ({
@@ -106,26 +130,93 @@ const DashboardPage = () => {
     value,
     icon,
     linkTo,
+    color,
+    isHighlighted = false,
   }: {
     title: string;
     value: number | string;
     icon: React.ReactNode;
     linkTo?: string;
+    color: string;
+    isHighlighted?: boolean;
   }) => (
-    <div className="bg-white rounded-xl shadow-lg p-6 flex items-center space-x-6">
-      <div className="p-4 bg-blue-500 rounded-full">{icon}</div>
+    <div
+      className={`bg-white/70 backdrop-blur-sm rounded-xl shadow-lg p-6 flex items-center space-x-6 transition-all duration-300 hover:scale-105 hover:shadow-xl ${
+        isHighlighted ? "ring-4 ring-yellow-400" : ""
+      }`}
+    >
+      <div className={`p-4 rounded-full ${color}`}>{icon}</div>
       <div>
         <p className="text-gray-500 text-sm font-medium">{title}</p>
         <p className="text-3xl font-bold text-gray-900">{value}</p>
         {linkTo && (
           <Link
             to={linkTo}
-            className="text-sm text-blue-500 hover:underline mt-1"
+            className="text-sm text-indigo-500 hover:underline mt-1"
           >
             View details &rarr;
           </Link>
         )}
       </div>
+    </div>
+  );
+
+  const GetStartedGuide = () => (
+    <div className="bg-white/70 backdrop-blur-sm rounded-xl shadow-lg p-8 my-8 text-center">
+      <h2 className="text-2xl font-bold text-gray-800 mb-2">
+        Welcome to MentorMe!
+      </h2>
+      <p className="text-gray-600 mb-6">
+        Let's get you started on your mentorship journey.
+      </p>
+      <div className="flex flex-col sm:flex-row justify-center gap-4">
+        <Link
+          to="/profile/edit"
+          className="px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-indigo-600 transition-all"
+        >
+          Complete Your Profile
+        </Link>
+        {user?.role === "MENTOR" && (
+          <Link
+            to="/availability"
+            className="px-6 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg font-semibold hover:from-green-600 hover:to-blue-600 transition-all"
+          >
+            Set Your Availability
+          </Link>
+        )}
+        {user?.role === "MENTEE" && (
+          <Link
+            to="/mentors"
+            className="px-6 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-lg font-semibold hover:from-green-600 hover:to-blue-600 transition-all"
+          >
+            Find a Mentor
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+
+  const NextSessionCard = () => (
+    <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl shadow-lg p-8 my-8">
+      <h3 className="text-xl font-bold mb-2">Next Upcoming Session</h3>
+      <p className="text-lg">
+        With{" "}
+        {user?.role === "MENTOR"
+          ? nextSession.mentee.profile.name
+          : nextSession.mentor.profile.name}
+      </p>
+      <p className="text-2xl font-semibold my-2">
+        {new Date(nextSession.date).toLocaleString([], {
+          dateStyle: "full",
+          timeStyle: "short",
+        })}
+      </p>
+      <Link
+        to="/my-sessions"
+        className="mt-4 inline-block px-6 py-2 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-gray-100"
+      >
+        View Session Details
+      </Link>
     </div>
   );
 
@@ -136,18 +227,41 @@ const DashboardPage = () => {
         value={stats.totalUsers}
         icon={<UsersIcon />}
         linkTo="/admin/users"
+        color="bg-gradient-to-br from-blue-400 to-indigo-500"
+      />
+      <StatCard
+        title="Total Mentors"
+        value={stats.totalMentors}
+        icon={<UsersIcon />}
+        color="bg-gradient-to-br from-blue-400 to-indigo-500"
+      />
+      <StatCard
+        title="Total Mentees"
+        value={stats.totalMentees}
+        icon={<UsersIcon />}
+        color="bg-gradient-to-br from-blue-400 to-indigo-500"
       />
       <StatCard
         title="Total Matches"
         value={stats.totalMatches}
         icon={<HandshakeIcon />}
         linkTo="/admin/matches"
+        color="bg-gradient-to-br from-green-400 to-blue-500"
       />
       <StatCard
         title="Total Sessions"
         value={stats.totalSessions}
         icon={<CalendarIcon />}
         linkTo="/admin/sessions"
+        color="bg-gradient-to-br from-purple-400 to-pink-500"
+      />
+      <StatCard
+        title="Pending Requests"
+        value={stats.pendingRequests}
+        icon={<InboxInIcon />}
+        linkTo="/admin/matches"
+        color="bg-gradient-to-br from-yellow-400 to-orange-500"
+        isHighlighted={stats.pendingRequests > 0}
       />
     </div>
   );
@@ -158,18 +272,35 @@ const DashboardPage = () => {
         title="Your Mentees"
         value={stats.menteeCount}
         icon={<UsersIcon />}
+        color="bg-gradient-to-br from-blue-400 to-indigo-500"
       />
       <StatCard
         title="Pending Requests"
         value={stats.pendingRequests}
         icon={<InboxInIcon />}
         linkTo="/requests"
+        color="bg-gradient-to-br from-green-400 to-blue-500"
+        isHighlighted={stats.pendingRequests > 0}
       />
       <StatCard
         title="Upcoming Sessions"
         value={stats.upcomingSessions}
         icon={<CalendarIcon />}
         linkTo="/my-sessions"
+        color="bg-gradient-to-br from-purple-400 to-pink-500"
+      />
+      <StatCard
+        title="Completed Sessions"
+        value={stats.completedSessions}
+        icon={<CalendarIcon />}
+        linkTo="/my-sessions"
+        color="bg-gradient-to-br from-purple-400 to-pink-500"
+      />
+      <StatCard
+        title="Average Rating"
+        value={`${stats.averageRating.toFixed(1)} ★`}
+        icon={<HandshakeIcon />}
+        color="bg-gradient-to-br from-yellow-400 to-orange-500"
       />
     </div>
   );
@@ -181,18 +312,28 @@ const DashboardPage = () => {
         value={stats.mentorCount}
         icon={<UsersIcon />}
         linkTo="/my-mentors"
+        color="bg-gradient-to-br from-blue-400 to-indigo-500"
       />
       <StatCard
         title="Pending Requests"
         value={stats.pendingRequests}
         icon={<InboxInIcon />}
         linkTo="/my-requests"
+        color="bg-gradient-to-br from-green-400 to-blue-500"
       />
       <StatCard
         title="Upcoming Sessions"
         value={stats.upcomingSessions}
         icon={<CalendarIcon />}
         linkTo="/my-sessions"
+        color="bg-gradient-to-br from-purple-400 to-pink-500"
+      />
+      <StatCard
+        title="Completed Sessions"
+        value={stats.completedSessions}
+        icon={<CalendarIcon />}
+        linkTo="/my-sessions"
+        color="bg-gradient-to-br from-purple-400 to-pink-500"
       />
     </div>
   );
@@ -215,38 +356,53 @@ const DashboardPage = () => {
     </div>
   );
 
-  // Helper function to format the role string for display
   const formatRole = (role: string) => {
     if (!role) return "";
     return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
   };
 
   return (
-    <div>
+    <div className="gradient-background py-8 -m-8 px-8">
       <h1 className="text-3xl font-bold text-gray-900 mb-2">
-        Welcome back, {user?.profile?.name || user?.email.split("@")[0]}!
+        Welcome back,{" "}
+        <span className="animate-rolling-color">
+          {user?.profile?.name || user?.email.split("@")[0]}!
+        </span>
       </h1>
 
-      {/* Role indicator badge */}
       {user?.role && (
-        <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full mb-6">
+        <span className="inline-block bg-indigo-100 text-indigo-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full mb-6">
           You are logged in as a {formatRole(user.role)}
         </span>
       )}
 
-      <p className="text-gray-600 mb-8">
+      <p className="text-gray-600 mb-8 animate-rolling-color">
         Here's a summary of your activity on the platform.
       </p>
 
       {isLoading && renderLoading()}
       {!isLoading && !stats && renderError()}
+
+      {!isLoading &&
+        stats &&
+        stats.menteeCount === 0 &&
+        stats.pendingRequests === 0 &&
+        stats.upcomingSessions === 0 && <GetStartedGuide />}
+
+      {!isLoading && nextSession && <NextSessionCard />}
+
       {!isLoading && stats && (
-        <>
+        <div className="mt-8">
           {user?.role === "ADMIN" && renderAdminDashboard()}
           {user?.role === "MENTOR" && renderMentorDashboard()}
           {user?.role === "MENTEE" && renderMenteeDashboard()}
-        </>
+        </div>
       )}
+
+      <div className="mt-8 bg-white/70 backdrop-blur-sm rounded-xl p-6 shadow-lg">
+        <h4 className="font-semibold text-gray-600">Mentor Tip of the Day</h4>
+        <p className="text-gray-800 italic">"{tipOfTheDay}"</p>
+      </div>
     </div>
   );
 };

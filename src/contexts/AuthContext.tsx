@@ -18,8 +18,8 @@ interface User {
     bio?: string;
     skills?: string[];
     goals?: string;
+    avatarUrl?: string;
   };
-  // Add fields for calendar integration
   googleAccessToken?: string;
   googleRefreshToken?: string;
 }
@@ -30,22 +30,28 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string) => Promise<void>;
   logout: () => void;
-  refetchUser: () => void; // Add a function to refetch user data
+  refetchUser: () => void;
 }
 
-// Create the context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Create the provider component
+// A helper function to manage the refresh token in a cookie
+const setRefreshTokenCookie = (token: string) => {
+  // In a real app, 'secure: true' should be used in production
+  document.cookie = `refreshToken=${token}; path=/; max-age=604800; SameSite=Lax;`;
+};
+
+const clearRefreshTokenCookie = () => {
+  document.cookie =
+    "refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT;";
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem("authToken")
-  );
+  const [token, setToken] = useState<string | null>(null); // Token is now in-memory
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Encapsulated function to fetch user data
   const fetchUser = async (authToken: string) => {
     apiClient.defaults.headers.common["Authorization"] = `Bearer ${authToken}`;
     try {
@@ -53,34 +59,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(response.data);
     } catch (error) {
       console.error("Auth token is invalid, logging out.", error);
-      // Call logout directly to handle cleanup
-      localStorage.removeItem("authToken");
-      setToken(null);
-      setUser(null);
-      delete apiClient.defaults.headers.common["Authorization"];
-      navigate("/login");
+      logout(); // Centralize logout logic
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (token) {
-      fetchUser(token);
+    // On initial load, try to "refresh" the session if a refresh token exists
+    const refreshToken = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("refreshToken="))
+      ?.split("=")[1];
+
+    if (refreshToken) {
+      // In a real app, you would have a '/auth/refresh' endpoint.
+      // We will simulate this by re-using the existing JWT for demonstration.
+      // This structure shows how a real refresh flow would be initiated.
+      setToken(refreshToken);
+      fetchUser(refreshToken);
     } else {
       setIsLoading(false);
     }
-    // The navigate function is stable and doesn't need to be a dependency
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, []);
 
   const login = async (newToken: string) => {
-    localStorage.setItem("authToken", newToken);
     setToken(newToken);
+    setRefreshTokenCookie(newToken); // Use the JWT as a refresh token for this simulation
+    await fetchUser(newToken);
   };
 
   const logout = () => {
-    localStorage.removeItem("authToken");
+    clearRefreshTokenCookie();
     setToken(null);
     setUser(null);
     delete apiClient.defaults.headers.common["Authorization"];
@@ -103,7 +113,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Custom hook to use the auth context
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

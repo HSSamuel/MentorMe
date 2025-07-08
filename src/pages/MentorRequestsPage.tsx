@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import apiClient from "../api/axios";
+import { Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 const StatusBadge = ({ status }: { status: string }) => {
   const baseClasses = "px-3 py-1 text-xs font-medium rounded-full";
@@ -23,16 +25,23 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 const MentorRequestsPage = () => {
+  const { user } = useAuth();
   const [requests, setRequests] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const fetchReceivedRequests = async () => {
+    const fetchPageData = async () => {
+      if (!user) return;
       setIsLoading(true);
       try {
-        const response = await apiClient.get("/requests/received");
-        setRequests(response.data);
+        const [requestsRes, statsRes] = await Promise.all([
+          apiClient.get("/requests/received"),
+          apiClient.get(`/users/mentor/${user.id}/stats`),
+        ]);
+        setRequests(requestsRes.data);
+        setStats(statsRes.data);
       } catch (err) {
         setError("Failed to load mentorship requests.");
         console.error(err);
@@ -41,8 +50,8 @@ const MentorRequestsPage = () => {
       }
     };
 
-    fetchReceivedRequests();
-  }, []);
+    fetchPageData();
+  }, [user]);
 
   const handleUpdateRequest = async (
     requestId: string,
@@ -70,7 +79,7 @@ const MentorRequestsPage = () => {
   if (error) return <p className="text-center text-red-500">{error}</p>;
 
   return (
-    <div>
+    <div className="gradient-background py-8 -m-8 px-8">
       <h1 className="text-3xl font-bold text-gray-900 mb-6">
         Incoming Mentorship Requests
       </h1>
@@ -126,13 +135,79 @@ const MentorRequestsPage = () => {
           ))}
         </div>
       ) : (
-        <div className="text-center py-16 px-6 bg-white rounded-lg shadow-md">
+        <div className="text-center py-16 px-6 bg-white/70 backdrop-blur-sm rounded-lg shadow-md">
+          <div className="inline-block p-4 bg-blue-100 rounded-full mb-4">
+            <svg
+              className="h-12 w-12 text-blue-500"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
           <h3 className="text-xl font-semibold text-gray-800">
             No Incoming Requests
           </h3>
-          <p className="text-gray-500 mt-2">
+          <p className="text-gray-500 mt-2 mb-8">
             You don't have any pending mentorship requests right now.
           </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {stats && (
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-100 p-6 rounded-lg text-left shadow-lg">
+                <h4 className="font-bold text-indigo-900 mb-3">Your Impact</h4>
+                <div className="space-y-4">
+                  <div className="bg-white/50 p-4 rounded-lg">
+                    <p className="text-sm text-indigo-800">
+                      Total Mentees Helped
+                    </p>
+                    <p className="text-2xl font-bold text-indigo-900">
+                      {stats.menteeCount}
+                    </p>
+                  </div>
+                  <div className="bg-white/50 p-4 rounded-lg">
+                    <p className="text-sm text-indigo-800">
+                      Sessions Completed
+                    </p>
+                    <p className="text-2xl font-bold text-indigo-900">
+                      {stats.completedSessions || 0}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-gradient-to-br from-green-50 to-blue-100 p-6 rounded-lg text-left shadow-lg">
+              <h4 className="font-bold text-green-900 mb-3">
+                How to Attract More Mentees
+              </h4>
+              <ul className="space-y-2 text-green-800 text-sm list-disc list-inside">
+                <li>
+                  Make sure your profile is fully complete and up-to-date.
+                </li>
+                <li>
+                  Add a clear and friendly bio that explains what you can help
+                  with.
+                </li>
+                <li>
+                  Set your availability to let mentees know when you're free.
+                </li>
+              </ul>
+              <div className="mt-4">
+                <Link
+                  to="/profile/edit"
+                  className="text-sm text-green-600 hover:underline font-semibold"
+                >
+                  Update Your Profile &rarr;
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

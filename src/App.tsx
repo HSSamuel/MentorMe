@@ -15,7 +15,7 @@ import AdminMatchesPage from "./pages/AdminMatchesPage";
 import AdminSessionsPage from "./pages/AdminSessionsPage";
 import DashboardPage from "./pages/DashboardPage";
 import MessagesPage from "./pages/MessagesPage";
-import MentorProfilePage from "./pages/MentorProfilePage"; // Import the new page
+import MentorProfilePage from "./pages/MentorProfilePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 
@@ -23,12 +23,14 @@ function App() {
   return (
     <Layout>
       <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* Public Auth Routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/mentor/:id" element={<MentorProfilePage />} />{" "}
-        {/* Add public mentor profile route */}
+
+        {/* Main Application Routes */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/mentor/:id" element={<MentorProfilePage />} />
+
         {/* Protected Routes */}
         <Route
           path="/profile/edit"
@@ -110,6 +112,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         {/* Admin Routes */}
         <Route
           path="/admin/users"

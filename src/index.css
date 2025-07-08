@@ -1,9 +1,29 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@keyframes rolling-color {
+  0% { color: #6366f1; } /* Indigo */
+  25% { color: #8b5cf6; } /* Purple */
+  50% { color: #ec4899; } /* Pink */
+  75% { color: #3b82f6; } /* Blue */
+  100% { color: #6366f1; } /* Back to Indigo */
+}
 
-/* You can add custom base styles here if needed */
+.animate-rolling-color {
+  animation: rolling-color 10s infinite linear;
+}
+
+.gradient-background {
+  background-image: linear-gradient(to top, #f3e8ff, #e0e7ff, #ffffff);
+}
+
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.auth-background {
+  background-image: url("./assets/Mentoring.jpg");
+  background-size: cover;
+  background-position: center;
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import apiClient from "../api/axios";
 import { useAuth } from "../contexts/AuthContext";
 import FeedbackModal from "../components/FeedbackModal";
+import { Link } from "react-router-dom";
 
 const SessionsListPage = () => {
   const { user } = useAuth();
@@ -19,7 +20,6 @@ const SessionsListPage = () => {
       setIsLoading(true);
 
       let endpoint = "";
-      // Corrected: Determine the correct API endpoint based on the user's role
       if (user.role === "ADMIN") {
         endpoint = "/admin/sessions";
       } else if (user.role === "MENTOR") {
@@ -30,7 +30,6 @@ const SessionsListPage = () => {
 
       try {
         const response = await apiClient.get(endpoint);
-        // The admin endpoint returns data in a different shape ({ sessions: [...] })
         const sessionData =
           user.role === "ADMIN" ? response.data.sessions : response.data;
         setSessions(sessionData || []);
@@ -67,7 +66,6 @@ const SessionsListPage = () => {
     const sessionDate = new Date(session.date);
     const hasFeedback = session.rating || session.feedback;
 
-    // Determine who the "other" user is, or show both for Admin view
     let sessionTitle = "Session";
     if (user?.role === "ADMIN") {
       sessionTitle = `Session: ${session.mentor?.profile?.name || "N/A"} & ${
@@ -132,6 +130,48 @@ const SessionsListPage = () => {
     );
   };
 
+  const EmptyState = ({ tab }: { tab: "upcoming" | "past" }) => (
+    <div className="text-center py-16 px-6 bg-white/70 backdrop-blur-sm rounded-lg shadow-md">
+      <div className="inline-block p-4 bg-indigo-100 rounded-full mb-4">
+        <svg
+          className="h-12 w-12 text-indigo-500"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+          />
+        </svg>
+      </div>
+      <h3 className="text-xl font-semibold text-gray-800">No {tab} sessions</h3>
+      <p className="text-gray-500 mt-2 mb-6">
+        {tab === "upcoming"
+          ? "You don't have any sessions scheduled."
+          : "You haven't completed any sessions yet."}
+      </p>
+      {tab === "upcoming" && user?.role === "MENTEE" && (
+        <Link
+          to="/mentors"
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+        >
+          Find a Mentor to Book a Session
+        </Link>
+      )}
+      {tab === "upcoming" && user?.role === "MENTOR" && (
+        <Link
+          to="/availability"
+          className="px-6 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-colors"
+        >
+          Set Your Availability
+        </Link>
+      )}
+    </div>
+  );
+
   const TabButton = ({
     tabName,
     label,
@@ -145,12 +185,18 @@ const SessionsListPage = () => {
       onClick={() => setActiveTab(tabName)}
       className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
         activeTab === tabName
-          ? "bg-blue-600 text-white"
+          ? "bg-indigo-600 text-white shadow"
           : "text-gray-600 hover:bg-gray-200"
       }`}
     >
       {label}{" "}
-      <span className="ml-2 px-2 py-0.5 bg-gray-300 text-gray-700 rounded-full text-xs">
+      <span
+        className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+          activeTab === tabName
+            ? "bg-indigo-400 text-white"
+            : "bg-gray-300 text-gray-700"
+        }`}
+      >
         {count}
       </span>
     </button>
@@ -164,7 +210,7 @@ const SessionsListPage = () => {
   if (error) return <p className="text-center text-red-500">Error: {error}</p>;
 
   return (
-    <div>
+    <div className="gradient-background py-8 -m-8 px-8">
       <h1 className="text-3xl font-bold text-gray-900 mb-6">
         {user?.role === "ADMIN" ? "All Platform Sessions" : "My Sessions"}
       </h1>
@@ -184,13 +230,13 @@ const SessionsListPage = () => {
           (upcomingSessions.length > 0 ? (
             upcomingSessions.map(renderSessionCard)
           ) : (
-            <p className="text-gray-500">There are no upcoming sessions.</p>
+            <EmptyState tab="upcoming" />
           ))}
         {activeTab === "past" &&
           (pastSessions.length > 0 ? (
             pastSessions.map(renderSessionCard)
           ) : (
-            <p className="text-gray-500">There are no past sessions.</p>
+            <EmptyState tab="past" />
           ))}
       </div>
 

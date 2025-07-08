@@ -77,22 +77,24 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-50">
-      <div className="p-6 rounded-lg shadow-lg bg-white w-full max-w-sm m-4">
-        <h2 className="text-2xl font-bold text-center mb-5 text-gray-800">
-          Login to MentorMe
-        </h2>
+    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-indigo-900 to-blue-900">
+      <div className="p-8 bg-gray-800 bg-opacity-50 backdrop-blur-sm rounded-lg shadow-xl w-full max-w-sm m-4">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-white">Welcome Back</h2>
+          <p className="text-gray-400">Sign in to your account</p>
+        </div>
+
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <div className="flex flex-col">
             <label
-              className="mb-1 font-semibold text-gray-700 text-sm"
+              className="mb-1 font-semibold text-gray-300 text-sm"
               htmlFor="email"
             >
               Email Address
             </label>
             <input
               id="email"
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm"
+              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -102,50 +104,50 @@ const LoginPage = () => {
           </div>
           <div className="flex flex-col">
             <label
-              className="mb-1 font-semibold text-gray-700 text-sm"
+              className="mb-1 font-semibold text-gray-300 text-sm"
               htmlFor="password"
             >
               Password
             </label>
             <input
               id="password"
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm"
+              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white"
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
             />
-            <div className="flex items-center gap-2 mt-2 text-xs text-gray-600">
+            <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
               <input
                 type="checkbox"
                 id="showPassword"
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700"
                 checked={showPassword}
                 onChange={() => setShowPassword(!showPassword)}
               />
               <label htmlFor="showPassword">Show Password</label>
             </div>
           </div>
-          {error && <p className="text-red-500 text-center text-xs">{error}</p>}
+          {error && <p className="text-red-400 text-center text-xs">{error}</p>}
           <button
             type="submit"
-            className="w-full px-4 py-2 border-none rounded-lg bg-blue-600 text-white font-semibold cursor-pointer transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 text-base"
+            className="w-full px-4 py-2 mt-4 border-none rounded-lg bg-blue-600 text-white font-semibold cursor-pointer transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 text-base"
           >
-            Login
+            Sign In
           </button>
         </form>
 
-        <div className="my-5 flex items-center">
-          <div className="flex-grow border-t border-gray-300"></div>
+        <div className="my-6 flex items-center">
+          <div className="flex-grow border-t border-gray-600"></div>
           <span className="flex-shrink mx-4 text-xs text-gray-400">OR</span>
-          <div className="flex-grow border-t border-gray-300"></div>
+          <div className="flex-grow border-t border-gray-600"></div>
         </div>
 
         <div className="flex flex-col gap-3">
           <button
             onClick={() => handleSocialLogin("google")}
-            className="flex items-center justify-center gap-3 w-full px-4 py-2 border border-gray-300 rounded-lg text-gray-700 font-semibold hover:bg-gray-50 transition-colors text-sm"
+            className="flex items-center justify-center gap-3 w-full px-4 py-2 border border-gray-600 rounded-lg text-white font-semibold bg-gray-700 hover:bg-gray-600 transition-colors text-sm"
           >
             <GoogleIcon />
             Continue with Google
@@ -159,14 +161,14 @@ const LoginPage = () => {
           </button>
         </div>
 
-        <div className="text-center mt-5">
-          <p className="text-gray-600 text-sm">
+        <div className="text-center mt-6">
+          <p className="text-gray-400 text-sm">
             Don't have an account?{" "}
             <Link
               to="/register"
-              className="font-semibold text-blue-600 hover:underline"
+              className="font-semibold text-blue-400 hover:text-blue-300"
             >
-              Register here
+              Create account
             </Link>
           </p>
         </div>
