@@ -23,7 +23,7 @@ body {
 }
 
 .auth-background {
-  background-image: url("./assets/Mentoring.jpg");
+  background-image: url("/Mentoring.jpg");
   background-size: cover;
   background-position: center;
 }
