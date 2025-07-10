@@ -22,8 +22,3 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-.auth-background {
-  background-image: url("/Mentoring.jpg");
-  background-size: cover;
-  background-position: center;
-}

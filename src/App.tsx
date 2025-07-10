@@ -18,10 +18,11 @@ import MessagesPage from "./pages/MessagesPage";
 import MentorProfilePage from "./pages/MentorProfilePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
+import AuthLayout from "./components/AuthLayout";
 
 function App() {
   return (
-    <Layout>
+    <AuthLayout>
       <Routes>
         {/* Public Auth Routes */}
         <Route path="/login" element={<LoginPage />} />
