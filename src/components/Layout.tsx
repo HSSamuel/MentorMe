@@ -3,6 +3,7 @@ import Navbar from "./Navbar";
 import { Toaster } from "react-hot-toast";
 import AIChatAssistant from "./AIChatAssistant";
 import { useLocation } from "react-router-dom";
+import MentoringImage from "../assets/Mentoring.jpg";
 
 interface LayoutProps {
   children: ReactNode;
@@ -15,7 +16,7 @@ const Layout = ({ children }: LayoutProps) => {
 
   const backgroundStyle = isAuthPage
     ? {
-        backgroundImage: "url(/src/assets/Mentoring.jpg)",
+        backgroundImage: `url(${MentoringImage})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
       }
