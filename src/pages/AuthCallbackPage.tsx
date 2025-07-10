@@ -11,10 +11,8 @@ const AuthCallbackPage = () => {
     const token = searchParams.get("token");
 
     if (token) {
-      // The login function will save the token and navigate to the dashboard
       login(token, "/dashboard");
     } else {
-      // If no token is found, redirect to the login page with an error
       navigate("/login", {
         state: { error: "Authentication failed. Please try again." },
       });

@@ -84,17 +84,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (newToken: string, from: string) => {
-    setIsLoading(true);
-    // 1. Set the new token and cookie
     setToken(newToken);
     setRefreshTokenCookie(newToken);
-
-    // 2. Fetch the new user's data
     await fetchUser(newToken);
-
-    // 3. Navigate only after everything is loaded
     navigate(from, { replace: true });
-    setIsLoading(false);
   };
 
   const logout = () => {
