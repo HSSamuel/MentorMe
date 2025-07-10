@@ -81,9 +81,9 @@ const MentorRequestsPage = () => {
   if (error) return <p className="text-center text-red-500 py-10">{error}</p>;
 
   return (
-    <div className="gradient-background py-8 -m-8 px-8 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">
+    <div className="gradient-background py-8 min-h-screen">
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6 text-center">
           Incoming Mentorship Requests
         </h1>
         {requests.length > 0 ? (
@@ -93,7 +93,7 @@ const MentorRequestsPage = () => {
                 key={req.id}
                 className="bg-white rounded-lg shadow-md overflow-hidden"
               >
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                     <div>
                       <h4 className="text-xl font-bold text-gray-800">
@@ -119,7 +119,7 @@ const MentorRequestsPage = () => {
                 </div>
 
                 {req.status === "PENDING" && (
-                  <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
+                  <div className="bg-gray-50 px-4 py-3 sm:px-6 grid grid-cols-2 sm:flex sm:justify-end gap-3">
                     <button
                       onClick={() => handleUpdateRequest(req.id, "REJECTED")}
                       className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"

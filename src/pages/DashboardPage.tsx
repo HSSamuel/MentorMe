@@ -395,11 +395,10 @@ const DashboardPage = () => {
         renderLoading()
       ) : user ? (
         <>
-          <div className="bg-white/70 backdrop-blur-sm rounded-lg shadow-lg p-6 sm:p-8 mb-8 flex items-center justify-between">
-            <div>
+          <div className="bg-white/70 backdrop-blur-sm rounded-lg shadow-lg p-6 sm:p-8 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="text-center sm:text-left">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 Welcome back, {isLoading && renderLoading()}{" "}
-                {/* Use the new skeleton loader */}
                 <span className="animate-rolling-color">
                   {user.profile?.name || user.email.split("@")[0]}!
                 </span>
@@ -418,7 +417,7 @@ const DashboardPage = () => {
             <img
               src={getAvatarUrl()}
               alt="Profile"
-              className="hidden sm:block h-24 w-24 rounded-full object-cover ring-4 ring-white/50"
+              className="h-24 w-24 rounded-full object-cover ring-4 ring-white/50"
             />
           </div>
 

@@ -16,7 +16,6 @@ const LoginPage = () => {
   const from = location.state?.from?.pathname || "/dashboard";
 
   useEffect(() => {
-    // This effect can be simplified, as navigation is handled by the login function
     if (!isLoading && user) {
       navigate(from, { replace: true });
     }
@@ -28,7 +27,6 @@ const LoginPage = () => {
 
     try {
       const response = await apiClient.post("/auth/login", { email, password });
-      // The login function now handles navigation internally
       await login(response.data.token, from);
     } catch (err: any) {
       setError(err.response?.data?.message || "Login failed.");
@@ -39,11 +37,9 @@ const LoginPage = () => {
     window.location.href = `${apiClient.defaults.baseURL}/auth/${provider}`;
   };
 
-  // The rest of the component's JSX remains the same...
-
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-indigo-900 to-blue-900">
-      <div className="p-8 bg-gray-800 bg-opacity-50 backdrop-blur-sm rounded-lg shadow-xl w-full max-w-sm m-4">
+    <div className="flex justify-center items-center min-h-screen">
+      <div className="p-8 bg-gray-800 bg-opacity-50 backdrop-blur-sm rounded-lg shadow-xl max-w-sm m-4">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-white">Welcome Back</h2>
           <p className="text-gray-400">Sign in to your account</p>

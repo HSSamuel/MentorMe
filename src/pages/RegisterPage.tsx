@@ -54,8 +54,8 @@ const RegisterPage = () => {
   }
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-indigo-900 to-blue-900">
-      <div className="p-8 bg-gray-800 bg-opacity-50 backdrop-blur-sm rounded-lg shadow-xl w-full max-w-sm m-4">
+    <div className="flex justify-center items-center min-h-screen">
+      <div className="p-8 bg-gray-800 bg-opacity-50 backdrop-blur-sm rounded-lg shadow-xl max-w-sm m-4">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-white">Create Your Account</h2>
         </div>

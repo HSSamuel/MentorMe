@@ -18,6 +18,7 @@ import MessagesPage from "./pages/MessagesPage";
 import MentorProfilePage from "./pages/MentorProfilePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
+import AuthCallbackPage from "./pages/AuthCallbackPage"; // Import the new component
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
         {/* Public Auth Routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
         {/* Main Application Routes */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
