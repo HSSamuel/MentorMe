@@ -84,9 +84,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (newToken: string, from: string) => {
+    setIsLoading(true);
     setToken(newToken);
     setRefreshTokenCookie(newToken);
     await fetchUser(newToken);
+    setIsLoading(false);
     navigate(from, { replace: true });
   };
 

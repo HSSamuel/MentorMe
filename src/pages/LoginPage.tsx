@@ -9,17 +9,10 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
-  const { login, user, isLoading } = useAuth();
-  const navigate = useNavigate();
+  const { login } = useAuth();
   const location = useLocation();
 
   const from = location.state?.from?.pathname || "/dashboard";
-
-  useEffect(() => {
-    if (!isLoading && user) {
-      navigate(from, { replace: true });
-    }
-  }, [user, isLoading, navigate, from]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
