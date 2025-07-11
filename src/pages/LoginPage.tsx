@@ -57,12 +57,20 @@ const LoginPage = () => {
             />
           </div>
           <div className="flex flex-col">
-            <label
-              className="mb-1 font-semibold text-gray-300 text-sm"
-              htmlFor="password"
-            >
-              Password
-            </label>
+            <div className="flex justify-between items-center">
+              <label
+                className="mb-1 font-semibold text-gray-300 text-sm"
+                htmlFor="password"
+              >
+                Password
+              </label>
+              <Link
+                to="/forgot-password"
+                className="text-xs text-blue-400 hover:text-blue-300"
+              >
+                Forgot Password?
+              </Link>
+            </div>
             <input
               id="password"
               className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white"

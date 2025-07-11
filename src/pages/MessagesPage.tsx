@@ -76,11 +76,16 @@ const MessagesPage = () => {
   useEffect(() => {
     const result = conversations.filter((convo) => {
       const otherParticipant = getOtherParticipant(convo);
+      // If there's no other participant, filter out this conversation.
+      if (!otherParticipant) {
+        return false;
+      }
+      // Now it's safe to access properties.
       return (
-        otherParticipant?.profile?.name
+        (otherParticipant.profile?.name || "")
           .toLowerCase()
           .includes(searchQuery.toLowerCase()) ||
-        otherParticipant?.email
+        (otherParticipant.email || "")
           .toLowerCase()
           .includes(searchQuery.toLowerCase())
       );

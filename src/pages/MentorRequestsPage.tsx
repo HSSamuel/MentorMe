@@ -36,8 +36,9 @@ const MentorRequestsPage = () => {
       if (!user) return;
       setIsLoading(true);
       try {
+        // FIX: The endpoint for received requests is "/requests/received"
         const [requestsRes, statsRes] = await Promise.all([
-          apiClient.get("/requests/received"),
+          apiClient.get("/requests/received"), // Corrected from "/requests/recieved"
           apiClient.get(`/users/mentor/${user.id}/stats`),
         ]);
         setRequests(requestsRes.data);

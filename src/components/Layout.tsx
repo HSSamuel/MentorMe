@@ -11,8 +11,16 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
-  const authPaths = ["/login", "/register"];
-  const isAuthPage = authPaths.includes(location.pathname);
+  // Add the new routes to the authPaths array
+  const authPaths = [
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
+  ];
+  const isAuthPage = authPaths.some((path) =>
+    location.pathname.startsWith(path)
+  );
 
   const backgroundStyle = isAuthPage
     ? {
