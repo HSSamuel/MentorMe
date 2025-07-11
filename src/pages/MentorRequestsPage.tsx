@@ -72,19 +72,6 @@ const MentorRequestsPage = () => {
     }
   };
 
-  const getAvatarUrl = (mentee: any) => {
-    const avatarUrl = mentee.profile?.avatarUrl;
-    if (avatarUrl) {
-      if (avatarUrl.startsWith("http")) {
-        return avatarUrl;
-      }
-      return `${apiClient.defaults.baseURL}${avatarUrl}`.replace("/api", "");
-    }
-    return `https://ui-avatars.com/api/?name=${
-      mentee.profile?.name || "M"
-    }&background=random&color=fff`;
-  };
-
   if (isLoading)
     return (
       <p className="text-center text-gray-500 py-10">
@@ -94,87 +81,59 @@ const MentorRequestsPage = () => {
   if (error) return <p className="text-center text-red-500 py-10">{error}</p>;
 
   return (
-    <div className="gradient-background py-8 -m-8 px-4 sm:px-6 lg:px-8 min-h-screen">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">
+    <div className="gradient-background py-8 min-h-screen">
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6 text-center">
           Incoming Mentorship Requests
         </h1>
         {requests.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-6">
             {requests.map((req) => (
               <div
                 key={req.id}
-                className="bg-white rounded-lg shadow-lg overflow-hidden flex flex-col"
+                className="bg-white rounded-lg shadow-md overflow-hidden"
               >
-                <div className="p-5 flex-grow">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-4">
-                      <img
-                        src={getAvatarUrl(req.mentee)}
-                        alt={req.mentee.profile.name}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                      <div>
-                        <h4 className="text-lg font-bold text-gray-800">
-                          {req.mentee.profile.name}
-                        </h4>
-                        <p className="text-xs text-gray-500">
-                          Requested on{" "}
-                          {new Date(req.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                    <div>
+                      <h4 className="text-xl font-bold text-gray-800">
+                        {req.mentee.profile.name}
+                      </h4>
+                      <p className="text-sm text-gray-500">
+                        Requested on{" "}
+                        {new Date(req.createdAt).toLocaleDateString()}
+                      </p>
                     </div>
-                    <StatusBadge status={req.status} />
+                    <div className="mt-4 sm:mt-0">
+                      <StatusBadge status={req.status} />
+                    </div>
                   </div>
-                  <div className="space-y-4 text-sm">
-                    <p className="text-gray-700">
-                      <strong className="font-medium text-gray-900">
-                        Bio:
-                      </strong>{" "}
-                      {req.mentee.profile.bio}
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-sm text-gray-600 mb-2">
+                      <strong>Bio:</strong> {req.mentee.profile.bio}
                     </p>
-                    <p className="text-gray-700">
-                      <strong className="font-medium text-gray-900">
-                        Goals:
-                      </strong>{" "}
-                      {req.mentee.profile.goals}
+                    <p className="text-sm text-gray-600">
+                      <strong>Goals:</strong> {req.mentee.profile.goals}
                     </p>
                   </div>
                 </div>
 
-                <div className="bg-gray-50 px-5 py-3">
-                  {req.status === "PENDING" && (
-                    <div className="flex justify-end gap-3">
-                      <button
-                        onClick={() => handleUpdateRequest(req.id, "REJECTED")}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                      >
-                        Reject
-                      </button>
-                      <button
-                        onClick={() => handleUpdateRequest(req.id, "ACCEPTED")}
-                        className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
-                      >
-                        Accept
-                      </button>
-                    </div>
-                  )}
-                  {req.status === "ACCEPTED" && (
-                    <div className="flex justify-end">
-                      <Link
-                        to="/messages"
-                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        View Chat
-                      </Link>
-                    </div>
-                  )}
-                  {req.status === "REJECTED" && (
-                    <p className="text-sm text-center text-red-700 font-medium">
-                      Request Rejected
-                    </p>
-                  )}
-                </div>
+                {req.status === "PENDING" && (
+                  <div className="bg-gray-50 px-4 py-3 sm:px-6 grid grid-cols-2 sm:flex sm:justify-end gap-3">
+                    <button
+                      onClick={() => handleUpdateRequest(req.id, "REJECTED")}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => handleUpdateRequest(req.id, "ACCEPTED")}
+                      className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      Accept
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -201,6 +160,59 @@ const MentorRequestsPage = () => {
             <p className="text-gray-500 mt-2 mb-8">
               You don't have any pending mentorship requests right now.
             </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+              {stats && (
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-100 p-6 rounded-lg text-left shadow-lg">
+                  <h4 className="font-bold text-indigo-900 mb-3">
+                    Your Impact
+                  </h4>
+                  <div className="space-y-4">
+                    <div className="bg-white/50 p-4 rounded-lg">
+                      <p className="text-sm text-indigo-800">
+                        Total Mentees Helped
+                      </p>
+                      <p className="text-2xl font-bold text-indigo-900">
+                        {stats.menteeCount}
+                      </p>
+                    </div>
+                    <div className="bg-white/50 p-4 rounded-lg">
+                      <p className="text-sm text-indigo-800">
+                        Sessions Completed
+                      </p>
+                      <p className="text-2xl font-bold text-indigo-900">
+                        {stats.completedSessions || 0}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-gradient-to-br from-green-50 to-blue-100 p-6 rounded-lg text-left shadow-lg">
+                <h4 className="font-bold text-green-900 mb-3">
+                  How to Attract More Mentees
+                </h4>
+                <ul className="space-y-2 text-green-800 text-sm list-disc list-inside">
+                  <li>
+                    Make sure your profile is fully complete and up-to-date.
+                  </li>
+                  <li>
+                    Add a clear and friendly bio that explains what you can help
+                    with.
+                  </li>
+                  <li>
+                    Set your availability to let mentees know when you're free.
+                  </li>
+                </ul>
+                <div className="mt-4">
+                  <Link
+                    to="/profile/edit"
+                    className="text-sm text-green-600 hover:underline font-semibold"
+                  >
+                    Update Your Profile &rarr;
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

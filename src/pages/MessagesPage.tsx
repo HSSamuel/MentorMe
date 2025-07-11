@@ -17,7 +17,7 @@ const MessagesPage = () => {
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
 
-  // Effect for fetching conversations
+  // --- Main Data Fetching Effect ---
   useEffect(() => {
     const fetchConversations = async () => {
       setIsLoading(true);
@@ -34,7 +34,45 @@ const MessagesPage = () => {
     fetchConversations();
   }, []);
 
-  // Effect for filtering conversations
+  // --- Socket Connection and Listener Effect ---
+  useEffect(() => {
+    if (!token) return;
+
+    // Connect to the socket server
+    socketRef.current = io(import.meta.env.VITE_API_BASE_URL, {
+      auth: { token },
+    });
+
+    socketRef.current.on("connect", () => {
+      console.log("Connected to socket server with id:", socketRef.current?.id);
+    });
+
+    // Listen for incoming messages
+    socketRef.current.on("receiveMessage", (message: any) => {
+      // Always update the conversation list to show the new latest message
+      setConversations((prevConvos) =>
+        prevConvos.map((c) =>
+          c.id === message.conversationId ? { ...c, messages: [message] } : c
+        )
+      );
+
+      // Only update the active message window if the incoming message
+      // belongs to the currently selected conversation
+      setSelectedConversation((prevSelected) => {
+        if (prevSelected?.id === message.conversationId) {
+          setMessages((prevMessages) => [...prevMessages, message]);
+        }
+        return prevSelected;
+      });
+    });
+
+    // Clean up the connection when the component unmounts
+    return () => {
+      socketRef.current?.disconnect();
+    };
+  }, [token]);
+
+  // --- Effect for Filtering Conversations ---
   useEffect(() => {
     const result = conversations.filter((convo) => {
       const otherParticipant = getOtherParticipant(convo);
@@ -50,35 +88,7 @@ const MessagesPage = () => {
     setFilteredConversations(result);
   }, [searchQuery, conversations]);
 
-  // Effect for managing Socket.IO connection
-  useEffect(() => {
-    if (token) {
-      socketRef.current = io(import.meta.env.VITE_API_BASE_URL, {
-        auth: { token },
-      });
-
-      socketRef.current.on("connect", () => {
-        console.log("Connected to socket server");
-      });
-
-      socketRef.current.on("receiveMessage", (message: any) => {
-        if (message.conversationId === selectedConversation?.id) {
-          setMessages((prevMessages) => [...prevMessages, message]);
-        }
-        setConversations((prev) =>
-          prev.map((c) =>
-            c.id === message.conversationId ? { ...c, messages: [message] } : c
-          )
-        );
-      });
-
-      return () => {
-        socketRef.current?.disconnect();
-      };
-    }
-  }, [token, selectedConversation]);
-
-  // Effect to scroll to the bottom of the messages list
+  // --- Effect to scroll to the bottom of the messages list ---
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -88,6 +98,7 @@ const MessagesPage = () => {
     try {
       const res = await apiClient.get(`/messages/${conversation.id}`);
       setMessages(res.data);
+      // Join the conversation room on the server
       socketRef.current?.emit("joinConversation", conversation.id);
     } catch (error) {
       console.error("Failed to fetch messages:", error);
@@ -96,17 +107,41 @@ const MessagesPage = () => {
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim() && selectedConversation) {
-      socketRef.current?.emit("sendMessage", {
+    if (
+      newMessage.trim() &&
+      selectedConversation &&
+      socketRef.current &&
+      user
+    ) {
+      const tempMessage = {
+        id: `temp-${Date.now()}`, // Temporary ID for the key
+        content: newMessage,
+        senderId: user.id,
+        createdAt: new Date().toISOString(),
+        sender: {
+          id: user.id,
+          profile: {
+            name: user.profile?.name || "Me",
+          },
+        },
+      };
+
+      // Optimistically update the UI
+      setMessages((prevMessages) => [...prevMessages, tempMessage]);
+
+      // Emit the message to the server
+      socketRef.current.emit("sendMessage", {
         conversationId: selectedConversation.id,
         content: newMessage,
       });
+
       setNewMessage("");
     }
   };
 
   const getOtherParticipant = (conversation: any) => {
-    return conversation.participants.find((p: any) => p.id !== user?.id);
+    if (!conversation?.participants || !user) return null;
+    return conversation.participants.find((p: any) => p.id !== user.id);
   };
 
   const EmptyState = () => (
