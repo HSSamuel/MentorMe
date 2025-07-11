@@ -14,9 +14,8 @@ const ForgotPasswordPage = () => {
       loading: "Sending reset link...",
       success: () => {
         setIsSubmitted(true);
-        return "If an account with that email exists, a reset link has been sent.";
+        return "Reset link sent successfully.";
       },
-      error: "Failed to send reset link. Please try again.",
     });
   };
 
