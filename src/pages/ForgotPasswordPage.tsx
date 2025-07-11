@@ -16,6 +16,7 @@ const ForgotPasswordPage = () => {
         setIsSubmitted(true);
         return "Reset link sent successfully.";
       },
+      error: "Failed to send reset link. Please try again.",
     });
   };
 
