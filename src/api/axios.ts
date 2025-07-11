@@ -9,13 +9,21 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config) => {
+    // Check for a token in the Authorization header first (e.g., from a recent login)
+    if (config.headers.Authorization) {
+      return config;
+    }
+
+    // If no header, fall back to the cookie
     const token = document.cookie
       .split("; ")
       .find((row) => row.startsWith("refreshToken="))
       ?.split("=")[1];
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
     return config;
   },
   (error) => {

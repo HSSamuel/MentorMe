@@ -58,7 +58,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
-  // Encapsulated function to fetch user data
   const fetchUser = async (authToken: string) => {
     apiClient.defaults.headers.common["Authorization"] = `Bearer ${authToken}`;
     try {
@@ -66,7 +65,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(data);
     } catch (error) {
       console.error("Auth token is invalid, logging out.", error);
-      // Force a full logout if the token is bad
       logout();
     }
   };
@@ -87,21 +85,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     setToken(newToken);
     setRefreshTokenCookie(newToken);
+    // Set the authorization header immediately
+    apiClient.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
     await fetchUser(newToken);
     setIsLoading(false);
     navigate(from, { replace: true });
   };
 
   const logout = () => {
-    // Clear everything possible
     setUser(null);
     setToken(null);
     clearRefreshTokenCookie();
-    localStorage.clear(); // Clear all localStorage
-    sessionStorage.clear(); // Clear all sessionStorage
+    localStorage.clear();
+    sessionStorage.clear();
     delete apiClient.defaults.headers.common["Authorization"];
-
-    // A hard redirect to the login page is the most reliable way to clear all state
     window.location.href = "/login";
   };
 
