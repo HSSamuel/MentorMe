@@ -73,6 +73,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const initAuth = async () => {
       const refreshToken = getRefreshToken();
       if (refreshToken) {
+        // --- ADDED LINE ---
+        // Sync token to localStorage on initial load for the API interceptor.
+        localStorage.setItem("authToken", refreshToken);
         setToken(refreshToken);
         await fetchUser(refreshToken);
       }
@@ -85,6 +88,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     setToken(newToken);
     setRefreshTokenCookie(newToken);
+    // --- ADDED LINE ---
+    // This is the crucial fix: save the token to localStorage.
+    localStorage.setItem("authToken", newToken);
     // Set the authorization header immediately
     apiClient.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
     await fetchUser(newToken);

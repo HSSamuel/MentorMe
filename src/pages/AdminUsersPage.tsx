@@ -1,151 +1,366 @@
-import React, { useState, useEffect } from "react";
-import apiClient from "../api/axios";
-import AssignMentorModal from "../components/AssignMentorModal";
-import toast from "react-hot-toast";
+import React, { useState, useEffect, useCallback } from "react";
+import axios from "axios";
 
-const AdminUsersPage = () => {
-  const [users, setUsers] = useState<any[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<any[]>([]);
-  const [mentors, setMentors] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
+// Define the structure of your User object to match the backend response
+interface Profile {
+  name: string;
+  bio?: string;
+  avatarUrl?: string;
+}
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedMentee, setSelectedMentee] = useState<any>(null);
+// Define a specific type for user roles for better type safety
+type UserRole = "ADMIN" | "MENTOR" | "MENTEE";
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      setIsLoading(true);
-      try {
-        const response = await apiClient.get("/admin/users");
-        setUsers(response.data);
-        setFilteredUsers(response.data);
-        setMentors(response.data.filter((user: any) => user.role === "MENTOR"));
-      } catch (err) {
-        setError("Failed to fetch users.");
-        console.error(err);
-      } finally {
-        setIsLoading(false);
+interface User {
+  id: string;
+  email: string;
+  role: UserRole;
+  profile: Profile;
+}
+
+// --- Axios API Instance Configuration ---
+const API_URL =
+  process.env.NODE_ENV === "development"
+    ? "http://localhost:5000" // Your local backend URL
+    : "https://mentorme-backend-b0u9.onrender.com"; // Your deployed backend URL
+
+const api = axios.create({
+  baseURL: API_URL,
+});
+
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// --- Reusable Modal Component for Deleting Users ---
+const ConfirmationModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  children,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  children: React.ReactNode;
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+        <h2 className="text-xl font-bold mb-4">{title}</h2>
+        <div>{children}</div>
+        <div className="mt-6 flex justify-end gap-4">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700"
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- START: NEW MODAL COMPONENT FOR EDITING USER ROLES ---
+const EditUserModal = ({
+  isOpen,
+  onClose,
+  onSave,
+  user,
+  selectedRole,
+  setSelectedRole,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: () => void;
+  user: User | null;
+  selectedRole: UserRole;
+  setSelectedRole: (role: UserRole) => void;
+}) => {
+  if (!isOpen || !user) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
+        <h2 className="text-xl font-bold mb-4">
+          Edit Role for {user.profile.name}
+        </h2>
+        <div className="flex flex-col">
+          <label
+            htmlFor="role-select"
+            className="mb-2 font-semibold text-gray-700"
+          >
+            User Role
+          </label>
+          <select
+            id="role-select"
+            value={selectedRole}
+            onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+            className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="ADMIN">ADMIN</option>
+            <option value="MENTOR">MENTOR</option>
+            <option value="MENTEE">MENTEE</option>
+          </select>
+        </div>
+        <div className="mt-6 flex justify-end gap-4">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSave}
+            className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+          >
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+// --- END: NEW MODAL COMPONENT ---
+
+const AdminUsersPage: React.FC = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [userToAction, setUserToAction] = useState<User | null>(null);
+
+  // --- START: NEW STATE FOR THE EDIT MODAL ---
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [userToEdit, setUserToEdit] = useState<User | null>(null);
+  const [selectedRole, setSelectedRole] = useState<UserRole>("MENTEE");
+  // --- END: NEW STATE ---
+
+  const fetchUsers = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await api.get("/api/admin/users");
+      const fetchedUsers = response.data.users || [];
+      setUsers(fetchedUsers);
+      setFilteredUsers(fetchedUsers);
+      setError(null);
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        setError("Unauthorized: Please log in again.");
+      } else {
+        setError("Failed to fetch users. Please try again later.");
       }
-    };
-    fetchUsers();
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    const result = users.filter(
+    fetchUsers();
+  }, [fetchUsers]);
+
+  useEffect(() => {
+    const results = users.filter(
       (user) =>
-        (user.profile?.name?.toLowerCase() || "").includes(
-          searchQuery.toLowerCase()
-        ) || user.email.toLowerCase().includes(searchQuery.toLowerCase())
+        (user.profile?.name?.toLowerCase() || "n/a").includes(
+          searchTerm.toLowerCase()
+        ) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.role.toLowerCase().includes(searchTerm.toLowerCase())
     );
-    setFilteredUsers(result);
-  }, [searchQuery, users]);
+    setFilteredUsers(results);
+  }, [searchTerm, users]);
 
-  const handleRoleChange = async (userId: string, newRole: string) => {
-    try {
-      const response = await apiClient.put(`/admin/users/${userId}/role`, {
-        role: newRole,
-      });
-      // Update the user in the main list
-      setUsers((prevUsers) =>
-        prevUsers.map((user) =>
-          user.id === userId ? { ...user, role: response.data.role } : user
-        )
-      );
-      toast.success("User role updated!");
-    } catch (err) {
-      toast.error("Failed to update role.");
-      console.error(err);
-    }
-  };
-
-  const handleOpenModal = (mentee: any) => {
-    setSelectedMentee(mentee);
+  const openDeleteModal = (user: User) => {
+    setUserToAction(user);
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
+  const closeDeleteModal = () => {
+    setUserToAction(null);
     setIsModalOpen(false);
-    setSelectedMentee(null);
   };
 
-  const handleAssignMentor = async (mentorId: string) => {
-    if (!selectedMentee) return;
+  const handleDeleteUser = async () => {
+    if (!userToAction) return;
+    console.log(`Simulating deletion of user: ${userToAction.id}`);
+    setUsers((prevUsers) => prevUsers.filter((u) => u.id !== userToAction.id));
+    closeDeleteModal();
+  };
+
+  // --- START: NEW HANDLERS FOR THE EDIT MODAL ---
+  const openEditModal = (user: User) => {
+    setUserToEdit(user);
+    setSelectedRole(user.role);
+    setIsEditModalOpen(true);
+  };
+
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setUserToEdit(null);
+  };
+
+  const handleUpdateRole = async () => {
+    if (!userToEdit) return;
+
     try {
-      await apiClient.post("/admin/assign", {
-        menteeId: selectedMentee.id,
-        mentorId,
+      const response = await api.put(`/api/admin/users/${userToEdit.id}/role`, {
+        role: selectedRole,
       });
-      toast.success("Mentor assigned successfully!");
-      handleCloseModal();
+
+      const updatedUser = response.data;
+
+      setUsers((prevUsers) =>
+        prevUsers.map((u) => (u.id === updatedUser.id ? updatedUser : u))
+      );
+
+      closeEditModal();
     } catch (err) {
-      toast.error("Failed to assign mentor.");
+      setError(`Failed to update role for ${userToEdit.profile.name}.`);
       console.error(err);
     }
   };
+  // --- END: NEW HANDLERS ---
 
-  if (isLoading)
-    return <p className="text-center text-gray-500">Loading users...</p>;
-  if (error) return <p className="text-center text-red-500">{error}</p>;
+  if (loading) {
+    return <div className="text-center p-10">Loading users...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="text-center p-10 text-red-600 bg-red-100 rounded-md">
+        {error}
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Manage Users</h1>
+    <div className="container mx-auto p-4 md:p-6">
+      <h1 className="text-3xl font-bold mb-6">User Management</h1>
+
       <div className="mb-6">
         <input
           type="text"
-          placeholder="Search by name or email..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Search by name, email, or role..."
+          className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
-      <div className="bg-white rounded-lg shadow-md">
-        <ul className="divide-y divide-gray-200">
-          {filteredUsers.map((user) => (
-            <li
-              key={user.id}
-              className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-            >
-              <div className="flex-grow">
-                <p className="text-lg font-semibold text-gray-800">
-                  {user.profile?.name || "N/A"}
-                </p>
-                <p className="text-sm text-gray-500">{user.email}</p>
-              </div>
-              <div className="flex items-center gap-4 w-full sm:w-auto">
-                <select
-                  value={user.role}
-                  onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                  className="w-full sm:w-auto px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+      <div className="overflow-x-auto bg-white rounded-lg shadow">
+        <table className="min-w-full">
+          <thead className="bg-gray-100 border-b-2 border-gray-200">
+            <tr>
+              <th className="text-left py-3 px-4 uppercase font-semibold text-sm">
+                Name
+              </th>
+              <th className="text-left py-3 px-4 uppercase font-semibold text-sm">
+                Email
+              </th>
+              <th className="text-left py-3 px-4 uppercase font-semibold text-sm">
+                Role
+              </th>
+              <th className="text-center py-3 px-4 uppercase font-semibold text-sm">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody className="text-gray-700">
+            {filteredUsers.length > 0 ? (
+              filteredUsers.map((user) => (
+                <tr
+                  key={user.id}
+                  className="hover:bg-gray-50 border-b border-gray-200"
                 >
-                  <option value="MENTEE">Mentee</option>
-                  <option value="MENTOR">Mentor</option>
-                  <option value="ADMIN">Admin</option>
-                </select>
-                {user.role === "MENTEE" && (
-                  <button
-                    onClick={() => handleOpenModal(user)}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
-                  >
-                    Assign Mentor
-                  </button>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+                  <td className="py-3 px-4">{user.profile?.name || "N/A"}</td>
+                  <td className="py-3 px-4">{user.email}</td>
+                  <td className="py-3 px-4">
+                    <span
+                      className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                        user.role === "ADMIN"
+                          ? "bg-indigo-200 text-indigo-800"
+                          : user.role === "MENTOR"
+                          ? "bg-green-200 text-green-800"
+                          : "bg-yellow-200 text-yellow-800"
+                      }`}
+                    >
+                      {user.role}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    <button
+                      onClick={() => openEditModal(user)}
+                      className="text-blue-600 hover:underline mr-4"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => openDeleteModal(user)}
+                      className="text-red-600 hover:underline"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={4} className="text-center py-10">
+                  No users found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {isModalOpen && selectedMentee && (
-        <AssignMentorModal
-          mentors={mentors}
-          onAssign={handleAssignMentor}
-          onClose={handleCloseModal}
-        />
-      )}
+      <ConfirmationModal
+        isOpen={isModalOpen}
+        onClose={closeDeleteModal}
+        onConfirm={handleDeleteUser}
+        title="Confirm User Deletion"
+      >
+        <p>
+          Are you sure you want to delete this user:{" "}
+          <strong>{userToAction?.profile?.name || userToAction?.email}</strong>?
+          This action cannot be undone.
+        </p>
+      </ConfirmationModal>
+
+      {/* --- ADDED: Render the new EditUserModal --- */}
+      <EditUserModal
+        isOpen={isEditModalOpen}
+        onClose={closeEditModal}
+        onSave={handleUpdateRole}
+        user={userToEdit}
+        selectedRole={selectedRole}
+        setSelectedRole={setSelectedRole}
+      />
     </div>
   );
 };
