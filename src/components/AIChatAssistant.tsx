@@ -78,12 +78,12 @@ const MicIcon = ({ isRecording }: { isRecording: boolean }) => (
 );
 const ChatIcon = () => (
   <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"></path>
+    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2z"></path>
   </svg>
 );
 const FloatingButtonChatIcon = () => (
   <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2z" />
   </svg>
 );
 const BackIcon = () => (
@@ -170,7 +170,6 @@ const helpArticles = [
 
 const suggestionChips = [
   "About MentorMe",
-  "How can I connect with mentors?",
   "Give me some relevant skills",
   "Help me set a S.M.A.R.T. goal",
   "How to prepare for an interview?",
@@ -216,6 +215,8 @@ const AIChatAssistant = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
+  const assistantRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -432,7 +433,6 @@ const AIChatAssistant = () => {
   };
 
   const MessageContent = ({ content }: { content: string }) => {
-    // Regex to split by bold tags (**...**) or the specific link markdown, keeping the delimiters
     const parts = content.split(/(\[View Goals\]\(#\/goals\))|(\*\*.*?\*\*)/g);
 
     return (
@@ -440,12 +440,10 @@ const AIChatAssistant = () => {
         {parts.map((part, index) => {
           if (!part) return null;
 
-          // Handle bold text
           if (part.startsWith("**") && part.endsWith("**")) {
             return <strong key={index}>{part.slice(2, -2)}</strong>;
           }
 
-          // Handle the specific goal link
           if (part === "[View Goals](#/goals)") {
             return (
               <Link
@@ -457,18 +455,46 @@ const AIChatAssistant = () => {
               </Link>
             );
           }
-
-          // Render plain text
           return <React.Fragment key={index}>{part}</React.Fragment>;
         })}
       </>
     );
   };
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        buttonRef.current &&
+        buttonRef.current.contains(event.target as Node)
+      ) {
+        return;
+      }
+
+      if (
+        assistantRef.current &&
+        !assistantRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
   return (
     <>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        ref={buttonRef}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
         className="fixed bottom-4 right-4 md:bottom-4 md:right-8 bg-blue-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center z-[60] hover:bg-blue-700 transition-transform hover:scale-110"
         aria-label="Toggle Assistant"
       >
@@ -476,9 +502,12 @@ const AIChatAssistant = () => {
       </button>
 
       {isOpen && (
-        <div className="fixed bottom-20 right-4 w-[calc(100vw-2rem)] max-w-[380px] h-[77vh] max-h-[600px] bg-white rounded-2xl shadow-2xl flex flex-col z-40 md:right-8">
+        <div
+          ref={assistantRef}
+          className="fixed bottom-24 right-4 w-[calc(100vw-2rem)] max-w-[380px] h-[77vh] max-h-[600px] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl flex flex-col z-50 md:right-8"
+        >
           <div
-            className="bg-blue-600 p-4 md:rounded-t-2xl text-white flex-shrink-0"
+            className="bg-blue-600 dark:bg-gray-900 p-4 md:rounded-t-2xl text-white flex-shrink-0"
             style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.1' fill-rule='evenodd'%3E%3Cpath d='M0 40L40 0H20L0 20M40 40V20L20 40'/%3E%3C/g%3E%3C/svg%3E")`,
             }}
@@ -522,11 +551,11 @@ const AIChatAssistant = () => {
 
           {activeTab === "chat" && (
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="p-2 border-b">
+              <div className="p-2 border-b dark:border-gray-700">
                 <select
                   value={selectedAI}
                   onChange={(e) => setSelectedAI(e.target.value)}
-                  className="w-full p-2 border-gray-300 rounded-md text-sm"
+                  className="w-full p-2 border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-md text-sm"
                 >
                   <option value="gemini">Gemini (Recommended)</option>
                   <option value="cohere">Cohere</option>
@@ -538,7 +567,7 @@ const AIChatAssistant = () => {
                     <div className="inline-block p-4 bg-blue-100 rounded-full">
                       <FloatingButtonChatIcon />
                     </div>
-                    <h3 className="mt-4 font-semibold text-lg">
+                    <h3 className="mt-4 font-semibold text-lg dark:text-gray-100">
                       How can I help you today?
                     </h3>
                     <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -546,7 +575,7 @@ const AIChatAssistant = () => {
                         <button
                           key={chip}
                           onClick={() => handleSuggestionClick(chip)}
-                          className="px-3 py-1 bg-gray-200 text-sm rounded-full hover:bg-gray-300"
+                          className="px-3 py-1 bg-gray-200 dark:bg-gray-700 dark:text-gray-200 text-sm rounded-full hover:bg-gray-300 dark:hover:bg-gray-600"
                         >
                           {chip}
                         </button>
@@ -565,7 +594,7 @@ const AIChatAssistant = () => {
                       className={`px-3 py-2 rounded-lg max-w-xs text-sm whitespace-pre-wrap ${
                         msg.sender === "USER"
                           ? "bg-blue-600 text-white"
-                          : "bg-gray-200 text-gray-800"
+                          : "bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
                       }`}
                     >
                       <MessageContent content={msg.content} />
@@ -579,7 +608,7 @@ const AIChatAssistant = () => {
                 )}
                 <div ref={messagesEndRef} />
               </div>
-              <div className="p-2 border-t border-gray-200 relative">
+              <div className="p-2 border-t dark:border-gray-700 relative">
                 {filePreview && (
                   <div className="p-2 relative">
                     {attachedFile?.type.startsWith("image/") ? (
@@ -589,7 +618,7 @@ const AIChatAssistant = () => {
                         className="max-h-24 rounded-lg"
                       />
                     ) : (
-                      <div className="bg-gray-100 p-2 rounded-lg text-sm text-gray-700">
+                      <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-lg text-sm text-gray-700 dark:text-gray-200">
                         {filePreview}
                       </div>
                     )}
@@ -605,12 +634,12 @@ const AIChatAssistant = () => {
                   </div>
                 )}
                 {showEmojiPalette && (
-                  <div className="absolute bottom-16 bg-white border rounded-lg p-2 shadow-lg">
+                  <div className="absolute bottom-16 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-lg p-2 shadow-lg">
                     {["😊", "😂", "❤️", "👍", "🤔", "🎉"].map((emoji) => (
                       <button
                         key={emoji}
                         onClick={() => handleEmojiSelect(emoji)}
-                        className="text-2xl p-1 hover:bg-gray-200 rounded"
+                        className="text-2xl p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
                       >
                         {emoji}
                       </button>
@@ -632,7 +661,7 @@ const AIChatAssistant = () => {
                       !e.shiftKey &&
                       (e.preventDefault(), handleSend())
                     }
-                    className="flex-grow p-2 resize-none border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 text-sm"
+                    className="w-full p-2 resize-none border border-gray-300 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 rounded-lg focus:ring-1 focus:ring-blue-500 text-sm"
                     placeholder="Compose your message..."
                     disabled={isLoading}
                     rows={1}
@@ -656,14 +685,14 @@ const AIChatAssistant = () => {
                   <button
                     type="button"
                     onClick={() => setShowEmojiPalette(!showEmojiPalette)}
-                    className="p-2 rounded-full hover:bg-gray-100"
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
                     <EmojiIcon />
                   </button>
                   <button
                     type="button"
                     onClick={handleAttachment}
-                    className="p-2 rounded-full hover:bg-gray-100"
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
                     <AttachmentIcon />
                   </button>
@@ -677,7 +706,7 @@ const AIChatAssistant = () => {
                   <button
                     type="button"
                     onClick={handleVoiceInput}
-                    className="p-2 rounded-full hover:bg-gray-100"
+                    className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
                     <MicIcon isRecording={isRecording} />
                   </button>
@@ -688,7 +717,7 @@ const AIChatAssistant = () => {
 
           {activeTab === "history" && (
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="p-2 border-b">
+              <div className="p-2 border-b dark:border-gray-700">
                 <button
                   onClick={handleNewChat}
                   className="w-full p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-semibold"
@@ -697,14 +726,14 @@ const AIChatAssistant = () => {
                 </button>
               </div>
               <div className="flex-1 p-4 overflow-y-auto space-y-2">
-                <h3 className="font-bold mb-2 text-center text-gray-600">
+                <h3 className="font-bold mb-2 text-center text-gray-600 dark:text-gray-400">
                   Past Conversations
                 </h3>
                 {conversations.length > 0 ? (
                   conversations.map((convo) => (
                     <div
                       key={convo.id}
-                      className="p-3 rounded-md hover:bg-gray-100 cursor-pointer border flex justify-between items-center group"
+                      className="p-3 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border dark:border-gray-700 flex justify-between items-center group"
                     >
                       <div
                         onClick={() => {
@@ -713,10 +742,10 @@ const AIChatAssistant = () => {
                         }}
                         className="flex-grow min-w-0"
                       >
-                        <p className="font-semibold text-sm truncate">
+                        <p className="font-semibold text-sm truncate dark:text-gray-100">
                           {convo.title}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                           Last updated:{" "}
                           {new Date(convo.updatedAt).toLocaleDateString()}
                         </p>
@@ -733,7 +762,7 @@ const AIChatAssistant = () => {
                     </div>
                   ))
                 ) : (
-                  <p className="text-center text-gray-500 mt-8">
+                  <p className="text-center text-gray-500 dark:text-gray-400 mt-8">
                     No conversation history yet.
                   </p>
                 )}
@@ -745,7 +774,7 @@ const AIChatAssistant = () => {
             <div className="flex-1 p-4 overflow-y-auto">
               {helpView === "list" ? (
                 <div>
-                  <h3 className="font-bold mb-3 text-center">
+                  <h3 className="font-bold mb-3 text-center dark:text-gray-100">
                     Most Frequently Read Articles
                   </h3>
                   <ul className="space-y-3">
@@ -753,9 +782,9 @@ const AIChatAssistant = () => {
                       <li
                         key={article.title}
                         onClick={() => handleArticleClick(article)}
-                        className="flex justify-between items-center cursor-pointer p-2 rounded-md hover:bg-gray-100"
+                        className="flex justify-between items-center cursor-pointer p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
                       >
-                        <span className="flex items-center text-sm">
+                        <span className="flex items-center text-sm dark:text-gray-200">
                           <HelpIcon />{" "}
                           <span className="ml-2">{article.title}</span>
                         </span>
@@ -768,15 +797,15 @@ const AIChatAssistant = () => {
                 <div>
                   <button
                     onClick={() => setHelpView("list")}
-                    className="flex items-center text-sm text-blue-600 font-semibold mb-4"
+                    className="flex items-center text-sm text-blue-600 dark:text-blue-400 font-semibold mb-4"
                   >
                     <BackIcon />
                     <span className="ml-1">Back to help</span>
                   </button>
-                  <h3 className="font-bold text-lg mb-3">
+                  <h3 className="font-bold text-lg mb-3 dark:text-gray-100">
                     {currentArticle.title}
                   </h3>
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                  <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                     {currentArticle.content}
                   </p>
                 </div>

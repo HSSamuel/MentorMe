@@ -79,7 +79,6 @@ const mentorTips = [
   "Remember to provide feedback after each session. It's the fastest way to improve.",
   "Don't be afraid to ask questions! Every expert was once a beginner.",
 ];
-
 const DashboardPage = () => {
   const { user, isLoading: isAuthLoading } = useAuth();
   const [stats, setStats] = useState<any>(null);
@@ -167,18 +166,22 @@ const DashboardPage = () => {
     isHighlighted?: boolean;
   }) => (
     <div
-      className={`bg-white/70 backdrop-blur-sm rounded-xl shadow-lg p-6 flex items-center space-x-6 transition-all duration-300 hover:scale-105 hover:shadow-xl ${
+      className={`bg-white/70 dark:bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg p-6 flex items-center space-x-6 transition-all duration-300 hover:scale-105 hover:shadow-xl ${
         isHighlighted ? "ring-4 ring-yellow-400" : ""
       }`}
     >
       <div className={`p-4 rounded-full ${color}`}>{icon}</div>
       <div>
-        <p className="text-gray-500 text-sm font-medium">{title}</p>
-        <p className="text-3xl font-bold text-gray-900">{value}</p>
+        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
+          {title}
+        </p>
+        <p className="text-3xl font-bold text-gray-900 dark:text-white">
+          {value}
+        </p>
         {linkTo && (
           <Link
             to={linkTo}
-            className="text-sm text-indigo-500 hover:underline mt-1"
+            className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline mt-1"
           >
             View details &rarr;
           </Link>
@@ -395,22 +398,24 @@ const DashboardPage = () => {
         renderLoading()
       ) : user ? (
         <>
-          <div className="bg-white/70 backdrop-blur-sm rounded-lg shadow-lg p-6 sm:p-8 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="bg-white/70 dark:bg-gray-800/50 backdrop-blur-sm rounded-lg shadow-lg p-6 sm:p-8 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="text-center sm:text-left">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Welcome back, {isLoading && renderLoading()}{" "}
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                Welcome back,{" "}
                 <span className="animate-rolling-color">
                   {user.profile?.name || user.email.split("@")[0]}!
                 </span>
               </h1>
 
               {user.role && (
-                <span className="inline-block bg-indigo-100 text-indigo-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">
-                  You are logged in as a {formatRole(user.role)}
+                <span className="inline-block bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">
+                  You are logged in as a{" "}
+                  {user.role.charAt(0).toUpperCase() +
+                    user.role.slice(1).toLowerCase()}
                 </span>
               )}
 
-              <p className="text-gray-600 mt-2">
+              <p className="text-gray-600 dark:text-gray-300 mt-2">
                 Here's a summary of your activity on the platform.
               </p>
             </div>
@@ -440,11 +445,13 @@ const DashboardPage = () => {
             </div>
           )}
 
-          <div className="mt-8 bg-white/70 backdrop-blur-sm rounded-xl p-6 shadow-lg">
-            <h4 className="font-semibold text-gray-600">
+          <div className="mt-8 bg-white/70 dark:bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 shadow-lg">
+            <h4 className="font-semibold text-gray-600 dark:text-gray-300">
               Mentor Tip of the Day
             </h4>
-            <p className="text-gray-800 italic">"{tipOfTheDay}"</p>
+            <p className="text-gray-800 dark:text-gray-100 italic">
+              "{tipOfTheDay}"
+            </p>
           </div>
         </>
       ) : (

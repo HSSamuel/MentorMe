@@ -27,12 +27,17 @@ const MentorListPage = () => {
         const [mentorsRes, skillsRes] = await Promise.all([
           apiClient.get(`/users/mentors?page=${currentPage}&limit=9`),
           apiClient.get("/users/skills"),
+          apiClient.get("/requests/sent"),
         ]);
 
         setMentors(mentorsRes.data.mentors);
         setFilteredMentors(mentorsRes.data.mentors);
         setTotalPages(mentorsRes.data.totalPages);
         setAllSkills(skillsRes.data);
+        const requestedIds = new Set(
+          requestsRes.data.map((req: any) => req.mentorId)
+        );
+        setRequestedMentorIds(requestedIds);
       } catch (error) {
         console.error("Failed to fetch data:", error);
       } finally {

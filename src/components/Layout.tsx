@@ -11,7 +11,6 @@ interface LayoutProps {
 
 const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
-  // Add the new routes to the authPaths array
   const authPaths = [
     "/login",
     "/register",
@@ -34,20 +33,21 @@ const Layout = ({ children }: LayoutProps) => {
     if (isAuthPage) {
       return (
         <div
-          className="min-h-screen flex flex-col items-center justify-center -mt-16 pt-16"
+          className="min-h-screen flex flex-col items-center justify-center -mt-16 pt-16 px-4"
           style={backgroundStyle}
         >
-          <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+          {/* The overlay is now also theme-aware */}
+          <div className="absolute inset-0 bg-black bg-opacity-50 dark:bg-opacity-70"></div>
           <div className="z-10">{children}</div>
         </div>
       );
     }
-    return <div className="bg-gray-50">{children}</div>;
+    // Removed bg-gray-50 as it's now handled by the body tag in index.css
+    return <div className="p-4 sm:p-6 lg:p-8">{children}</div>;
   };
 
   return (
     <div className="min-h-screen">
-      {/* Pass the isAuthPage prop to the Navbar */}
       <Navbar isAuthPage={isAuthPage} />
       <main>
         <PageWrapper>{children}</PageWrapper>

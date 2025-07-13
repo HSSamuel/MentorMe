@@ -54,119 +54,114 @@ const RegisterPage = () => {
   }
 
   return (
-    <div className="flex justify-center items-center min-h-screen">
-      <div className="p-8 bg-gray-800 bg-opacity-50 backdrop-blur-sm rounded-lg shadow-xl max-w-sm m-4">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-white">Create Your Account</h2>
-        </div>
+    <div className="p-6 bg-gray-800 bg-opacity-70 rounded-lg shadow-xl w-full max-w-xs m-4">
+      <div className="text-center mb-4">
+        <h2 className="text-xl font-bold text-white">Create Your Account</h2>
+      </div>
 
-        <div className="flex flex-col gap-3 mb-5">
-          <button
-            onClick={() => handleSocialLogin("google")}
-            className="flex items-center justify-center gap-3 w-full px-4 py-2 border border-gray-600 rounded-lg text-white font-semibold bg-gray-700 hover:bg-gray-600 transition-colors text-sm"
+      <div className="flex flex-col gap-2 mb-3">
+        <button
+          onClick={() => handleSocialLogin("google")}
+          className="flex items-center justify-center gap-3 w-full px-4 py-1.5 border border-gray-600 rounded-lg text-white font-semibold bg-gray-700 hover:bg-gray-600 transition-colors text-sm"
+        >
+          <GoogleIcon />
+          Sign up with Google
+        </button>
+        <button
+          onClick={() => handleSocialLogin("facebook")}
+          className="flex items-center justify-center gap-3 w-full px-4 py-1.5 border-none rounded-lg text-white font-semibold bg-[#1877F2] hover:bg-[#166eab] transition-colors text-sm"
+        >
+          <FacebookIcon />
+          Sign up with Facebook
+        </button>
+      </div>
+
+      <div className="my-3 flex items-center">
+        <div className="flex-grow border-t border-gray-600"></div>
+        <span className="flex-shrink mx-4 text-xs text-gray-400">OR</span>
+        <div className="flex-grow border-t border-gray-600"></div>
+      </div>
+
+      <form onSubmit={handleRegister} className="flex flex-col gap-1.5">
+        <div className="flex flex-col">
+          <label
+            className="font-semibold text-gray-300 text-xs"
+            htmlFor="email"
           >
-            <GoogleIcon />
-            Sign up with Google
-          </button>
-          <button
-            onClick={() => handleSocialLogin("facebook")}
-            className="flex items-center justify-center gap-3 w-full px-4 py-2 border-none rounded-lg text-white font-semibold bg-[#1877F2] hover:bg-[#166eab] transition-colors text-sm"
+            Email Address
+          </label>
+          <input
+            id="email"
+            className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white text-sm"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            required
+          />
+        </div>
+        <div className="flex flex-col">
+          <label
+            className="font-semibold text-gray-300 text-xs"
+            htmlFor="password"
           >
-            <FacebookIcon />
-            Sign up with Facebook
-          </button>
-        </div>
-
-        <div className="my-6 flex items-center">
-          <div className="flex-grow border-t border-gray-600"></div>
-          <span className="flex-shrink mx-4 text-xs text-gray-400">OR</span>
-          <div className="flex-grow border-t border-gray-600"></div>
-        </div>
-
-        <form onSubmit={handleRegister} className="flex flex-col gap-4">
-          <div className="flex flex-col">
-            <label
-              className="mb-1 font-semibold text-gray-300 text-sm"
-              htmlFor="email"
-            >
-              Email Address
-            </label>
+            Password
+          </label>
+          <input
+            id="password"
+            className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white text-sm"
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="At least 6 characters"
+            required
+          />
+          <div className="flex items-center gap-2 mt-1 text-xs text-gray-400">
             <input
-              id="email"
-              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
+              type="checkbox"
+              id="showPassword"
+              className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700"
+              checked={showPassword}
+              onChange={() => setShowPassword(!showPassword)}
             />
+            <label htmlFor="showPassword">Show Password</label>
           </div>
-          <div className="flex flex-col">
-            <label
-              className="mb-1 font-semibold text-gray-300 text-sm"
-              htmlFor="password"
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 6 characters"
-              required
-            />
-            <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
-              <input
-                type="checkbox"
-                id="showPassword"
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700"
-                checked={showPassword}
-                onChange={() => setShowPassword(!showPassword)}
-              />
-              <label htmlFor="showPassword">Show Password</label>
-            </div>
-          </div>
-          <div className="flex flex-col">
-            <label
-              className="mb-1 font-semibold text-gray-300 text-sm"
-              htmlFor="role"
-            >
-              I am a:
-            </label>
-            <select
-              id="role"
-              className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white"
-              value={role}
-              onChange={(e) => setRole(e.target.value as "MENTEE" | "MENTOR")}
-            >
-              <option value="MENTEE">Mentee (Looking for guidance)</option>
-              <option value="MENTOR">Mentor (Want to provide guidance)</option>
-            </select>
-          </div>
-          {error && <p className="text-red-400 text-center text-xs">{error}</p>}
-          {success && (
-            <p className="text-green-400 text-center text-xs">{success}</p>
-          )}
-          <button
-            type="submit"
-            className="w-full px-4 py-2 mt-4 border-none rounded-lg bg-green-600 text-white font-semibold cursor-pointer transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 text-base"
-          >
-            Register with Email
-          </button>
-        </form>
-        <div className="text-center mt-6">
-          <p className="text-gray-400 text-sm">
-            Already have an account?{" "}
-            <Link
-              to="/login"
-              className="font-semibold text-blue-400 hover:text-blue-300"
-            >
-              Login
-            </Link>
-          </p>
         </div>
+        <div className="flex flex-col">
+          <label className="font-semibold text-gray-300 text-xs" htmlFor="role">
+            I am a:
+          </label>
+          <select
+            id="role"
+            className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white text-sm"
+            value={role}
+            onChange={(e) => setRole(e.target.value as "MENTEE" | "MENTOR")}
+          >
+            <option value="MENTEE">Mentee (Looking for guidance)</option>
+            <option value="MENTOR">Mentor (Want to provide guidance)</option>
+          </select>
+        </div>
+        {error && <p className="text-red-400 text-center text-xs">{error}</p>}
+        {success && (
+          <p className="text-green-400 text-center text-xs">{success}</p>
+        )}
+        <button
+          type="submit"
+          className="w-full px-4 py-2 mt-2 border-none rounded-lg bg-green-600 text-white font-semibold cursor-pointer transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 text-sm"
+        >
+          Register with Email
+        </button>
+      </form>
+      <div className="text-center mt-3">
+        <p className="text-xs text-gray-400">
+          Already have an account?{" "}
+          <Link
+            to="/login"
+            className="font-semibold text-blue-400 hover:text-blue-300"
+          >
+            Login
+          </Link>
+        </p>
       </div>
     </div>
   );

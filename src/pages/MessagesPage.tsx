@@ -151,9 +151,9 @@ const MessagesPage = () => {
 
   const EmptyState = () => (
     <div className="text-center py-16 px-6">
-      <div className="inline-block p-4 bg-indigo-100 rounded-full mb-4">
+      <div className="inline-block p-4 bg-indigo-100 dark:bg-indigo-900/50 rounded-full mb-4">
         <svg
-          className="h-12 w-12 text-indigo-500"
+          className="h-12 w-12 text-indigo-500 dark:text-indigo-400"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -166,16 +166,16 @@ const MessagesPage = () => {
           />
         </svg>
       </div>
-      <h3 className="text-xl font-semibold text-gray-800">
+      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
         Your conversations live here
       </h3>
       {user?.role === "MENTEE" && (
-        <p className="text-gray-500 mt-2 mb-6">
+        <p className="text-gray-500 dark:text-gray-400 mt-2 mb-6">
           Once a mentor accepts your request, you can start chatting with them.
         </p>
       )}
       {user?.role === "MENTOR" && (
-        <p className="text-gray-500 mt-2 mb-6">
+        <p className="text-gray-500 dark:text-gray-400 mt-2 mb-6">
           When you accept a mentorship request, your private chat with that
           mentee will appear here.
         </p>
@@ -200,19 +200,21 @@ const MessagesPage = () => {
   );
 
   return (
-    <div className="gradient-background p-4 sm:p-6 md:p-8">
-      <div className="w-full max-w-4xl mx-auto bg-white/70 backdrop-blur-sm rounded-lg shadow-xl overflow-hidden h-[calc(100vh-10rem)] flex flex-col">
+    <div className="p-4 sm:p-6 md:p-8">
+      <div className="w-full max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden h-[calc(100vh-10rem)] flex flex-col">
         {isLoading ? (
           <div className="flex-grow flex items-center justify-center">
-            <p className="text-gray-500">Loading conversations...</p>
+            <p className="text-gray-500 dark:text-gray-400">
+              Loading conversations...
+            </p>
           </div>
         ) : selectedConversation ? (
           // View 2: Message Window
           <>
-            <div className="p-4 border-b border-gray-200/50 bg-white/50 flex items-center gap-2 flex-shrink-0">
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={() => setSelectedConversation(null)}
-                className="p-1 rounded-full hover:bg-gray-200"
+                className="p-1 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
                 aria-label="Back to conversations"
               >
                 <svg
@@ -227,7 +229,7 @@ const MessagesPage = () => {
                   />
                 </svg>
               </button>
-              <h3 className="font-bold text-lg text-gray-900">
+              <h3 className="font-bold text-lg text-gray-900 dark:text-white">
                 {getOtherParticipant(selectedConversation)?.profile?.name ||
                   "User"}
               </h3>
@@ -244,7 +246,7 @@ const MessagesPage = () => {
                     className={`rounded-lg px-4 py-2 max-w-lg shadow-sm ${
                       msg.senderId === user?.id
                         ? "bg-blue-600 text-white"
-                        : "bg-white text-gray-800"
+                        : "bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
                     }`}
                   >
                     <p>{msg.content}</p>
@@ -259,14 +261,14 @@ const MessagesPage = () => {
               ))}
               <div ref={messagesEndRef} />
             </div>
-            <div className="p-4 bg-white/50 border-t border-gray-200/50 flex-shrink-0">
+            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
               <form onSubmit={handleSendMessage} className="flex gap-4">
                 <input
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Type a message..."
-                  className="flex-grow px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-grow px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <button
                   type="submit"
@@ -280,14 +282,16 @@ const MessagesPage = () => {
         ) : (
           // View 1: Conversation List
           <>
-            <div className="p-4 border-b border-gray-200/50 flex-shrink-0">
-              <h2 className="text-xl font-bold text-gray-800">Conversations</h2>
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white">
+                Conversations
+              </h2>
               <input
                 type="text"
                 placeholder="Search conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full mt-4 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="w-full mt-4 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
             </div>
             <div className="flex-grow overflow-y-auto">
@@ -303,7 +307,7 @@ const MessagesPage = () => {
                     <div
                       key={convo.id}
                       onClick={() => handleSelectConversation(convo)}
-                      className="p-4 cursor-pointer hover:bg-white/50 transition-colors duration-200 flex items-center gap-4 border-b border-gray-200/50"
+                      className="p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors duration-200 flex items-center gap-4 border-b border-gray-200 dark:border-gray-700"
                     >
                       <img
                         className="h-12 w-12 rounded-full object-cover"
@@ -321,14 +325,14 @@ const MessagesPage = () => {
                         alt="Avatar"
                       />
                       <div className="flex-grow">
-                        <p className="font-semibold text-gray-900">
+                        <p className="font-semibold text-gray-900 dark:text-gray-200">
                           {otherParticipant?.profile?.name || "User"}
                         </p>
                         <p
                           className={`text-sm truncate ${
                             isUnread
-                              ? "text-gray-800 font-bold"
-                              : "text-gray-600"
+                              ? "text-gray-800 dark:text-white font-bold"
+                              : "text-gray-600 dark:text-gray-400"
                           }`}
                         >
                           {lastMessage?.content || "No messages yet"}

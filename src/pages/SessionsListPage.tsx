@@ -80,29 +80,29 @@ const SessionsListPage = () => {
     return (
       <div
         key={session.id}
-        className="bg-white rounded-lg shadow-md overflow-hidden"
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
       >
         <div className="p-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
             <div>
-              <h4 className="text-lg font-bold text-gray-800">
+              <h4 className="text-lg font-bold text-gray-800 dark:text-gray-100">
                 {sessionTitle}
               </h4>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
                 {sessionDate.toLocaleString([], {
-                  dateStyle: "long",
+                  dateStyle: "full",
                   timeStyle: "short",
                 })}
               </p>
             </div>
             <div className="mt-4 sm:mt-0">
               {activeTab === "past" && (
-                <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
                   Completed
                 </span>
               )}
               {activeTab === "upcoming" && (
-                <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200">
                   Upcoming
                 </span>
               )}
@@ -110,7 +110,7 @@ const SessionsListPage = () => {
           </div>
         </div>
         {activeTab === "past" && !hasFeedback && user?.role !== "ADMIN" && (
-          <div className="bg-gray-50 px-6 py-4 flex justify-end">
+          <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 flex justify-end">
             <button
               onClick={() => handleOpenFeedbackModal(session)}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
@@ -120,8 +120,8 @@ const SessionsListPage = () => {
           </div>
         )}
         {activeTab === "past" && hasFeedback && (
-          <div className="bg-gray-50 px-6 py-3">
-            <p className="text-xs text-green-600 italic text-right">
+          <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3">
+            <p className="text-xs text-green-600 dark:text-green-400 italic text-right">
               Feedback submitted. Thank you!
             </p>
           </div>
@@ -131,10 +131,10 @@ const SessionsListPage = () => {
   };
 
   const EmptyState = ({ tab }: { tab: "upcoming" | "past" }) => (
-    <div className="text-center py-16 px-6 bg-white/70 backdrop-blur-sm rounded-lg shadow-md">
-      <div className="inline-block p-4 bg-indigo-100 rounded-full mb-4">
+    <div className="text-center py-16 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+      <div className="inline-block p-4 bg-indigo-100 dark:bg-indigo-900/50 rounded-full mb-4">
         <svg
-          className="h-12 w-12 text-indigo-500"
+          className="h-12 w-12 text-indigo-500 dark:text-indigo-400"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -147,8 +147,10 @@ const SessionsListPage = () => {
           />
         </svg>
       </div>
-      <h3 className="text-xl font-semibold text-gray-800">No {tab} sessions</h3>
-      <p className="text-gray-500 mt-2 mb-6">
+      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
+        No {tab} sessions
+      </h3>
+      <p className="text-gray-500 dark:text-gray-400 mt-2 mb-6">
         {tab === "upcoming"
           ? "You don't have any sessions scheduled."
           : "You haven't completed any sessions yet."}
@@ -186,7 +188,7 @@ const SessionsListPage = () => {
       className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
         activeTab === tabName
           ? "bg-indigo-600 text-white shadow"
-          : "text-gray-600 hover:bg-gray-200"
+          : "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
       }`}
     >
       {label}{" "}
@@ -194,7 +196,7 @@ const SessionsListPage = () => {
         className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
           activeTab === tabName
             ? "bg-indigo-400 text-white"
-            : "bg-gray-300 text-gray-700"
+            : "bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200"
         }`}
       >
         {count}
@@ -204,18 +206,20 @@ const SessionsListPage = () => {
 
   if (isLoading)
     return (
-      <p className="text-center text-gray-500">Loading your sessions...</p>
+      <p className="text-center text-gray-500 dark:text-gray-400">
+        Loading your sessions...
+      </p>
     );
 
   if (error) return <p className="text-center text-red-500">Error: {error}</p>;
 
   return (
-    <div className="gradient-background py-8 min-h-screen">
+    <div className="py-8 min-h-screen">
       <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6 text-center">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">
           {user?.role === "ADMIN" ? "All Platform Sessions" : "My Sessions"}
         </h1>
-        <div className="mb-6 border-b border-gray-200">
+        <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex justify-center space-x-4">
             <TabButton
               tabName="upcoming"

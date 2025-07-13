@@ -1,6 +1,14 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Apply theme colors directly to the body for a full-page effect */
+@layer base {
+  body {
+    @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300;
+  }
+}
+
 @keyframes rolling-color {
   0% {
     color: #6366f1;
@@ -24,6 +32,7 @@
 }
 
 .gradient-background {
+  /* This class can now be removed from pages if a solid theme color is preferred */
   background-image: linear-gradient(to top, #f3e8ff, #e0e7ff, #ffffff);
 }
 

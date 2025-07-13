@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import axios from "axios";
+import apiClient from "../api/axios";
 
 // Define the structure of your User object to match the backend response
 interface Profile {
@@ -17,29 +17,6 @@ interface User {
   role: UserRole;
   profile: Profile;
 }
-
-// --- Axios API Instance Configuration ---
-const API_URL =
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:5000" // Your local backend URL
-    : "https://mentorme-backend-b0u9.onrender.com"; // Your deployed backend URL
-
-const api = axios.create({
-  baseURL: API_URL,
-});
-
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
 
 // --- Reusable Modal Component for Deleting Users ---
 const ConfirmationModal = ({
@@ -59,13 +36,15 @@ const ConfirmationModal = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-        <h2 className="text-xl font-bold mb-4">{title}</h2>
-        <div>{children}</div>
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md">
+        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+          {title}
+        </h2>
+        <div className="text-gray-600 dark:text-gray-300">{children}</div>
         <div className="mt-6 flex justify-end gap-4">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400"
+            className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500"
           >
             Cancel
           </button>
@@ -81,7 +60,7 @@ const ConfirmationModal = ({
   );
 };
 
-// --- START: NEW MODAL COMPONENT FOR EDITING USER ROLES ---
+// --- Reusable Modal Component for Editing User Roles ---
 const EditUserModal = ({
   isOpen,
   onClose,
@@ -101,14 +80,14 @@ const EditUserModal = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md">
-        <h2 className="text-xl font-bold mb-4">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-md">
+        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
           Edit Role for {user.profile.name}
         </h2>
         <div className="flex flex-col">
           <label
             htmlFor="role-select"
-            className="mb-2 font-semibold text-gray-700"
+            className="mb-2 font-semibold text-gray-700 dark:text-gray-300"
           >
             User Role
           </label>
@@ -116,7 +95,7 @@ const EditUserModal = ({
             id="role-select"
             value={selectedRole}
             onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-            className="p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="p-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
           >
             <option value="ADMIN">ADMIN</option>
             <option value="MENTOR">MENTOR</option>
@@ -126,7 +105,7 @@ const EditUserModal = ({
         <div className="mt-6 flex justify-end gap-4">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400"
+            className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500"
           >
             Cancel
           </button>
@@ -141,7 +120,6 @@ const EditUserModal = ({
     </div>
   );
 };
-// --- END: NEW MODAL COMPONENT ---
 
 const AdminUsersPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -153,16 +131,14 @@ const AdminUsersPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [userToAction, setUserToAction] = useState<User | null>(null);
 
-  // --- START: NEW STATE FOR THE EDIT MODAL ---
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole>("MENTEE");
-  // --- END: NEW STATE ---
 
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get("/api/admin/users");
+      const response = await apiClient.get("/admin/users");
       const fetchedUsers = response.data.users || [];
       setUsers(fetchedUsers);
       setFilteredUsers(fetchedUsers);
@@ -212,7 +188,6 @@ const AdminUsersPage: React.FC = () => {
     closeDeleteModal();
   };
 
-  // --- START: NEW HANDLERS FOR THE EDIT MODAL ---
   const openEditModal = (user: User) => {
     setUserToEdit(user);
     setSelectedRole(user.role);
@@ -228,9 +203,12 @@ const AdminUsersPage: React.FC = () => {
     if (!userToEdit) return;
 
     try {
-      const response = await api.put(`/api/admin/users/${userToEdit.id}/role`, {
-        role: selectedRole,
-      });
+      const response = await apiClient.put(
+        `/admin/users/${userToEdit.id}/role`,
+        {
+          role: selectedRole,
+        }
+      );
 
       const updatedUser = response.data;
 
@@ -244,7 +222,6 @@ const AdminUsersPage: React.FC = () => {
       console.error(err);
     }
   };
-  // --- END: NEW HANDLERS ---
 
   if (loading) {
     return <div className="text-center p-10">Loading users...</div>;
@@ -252,7 +229,7 @@ const AdminUsersPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="text-center p-10 text-red-600 bg-red-100 rounded-md">
+      <div className="text-center p-10 text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-300 rounded-md">
         {error}
       </div>
     );
@@ -260,42 +237,44 @@ const AdminUsersPage: React.FC = () => {
 
   return (
     <div className="container mx-auto p-4 md:p-6">
-      <h1 className="text-3xl font-bold mb-6">User Management</h1>
+      <h1 className="text-3xl font-bold mb-6 text-gray-900 dark:text-white">
+        User Management
+      </h1>
 
       <div className="mb-6">
         <input
           type="text"
           placeholder="Search by name, email, or role..."
-          className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
 
-      <div className="overflow-x-auto bg-white rounded-lg shadow">
+      <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow">
         <table className="min-w-full">
-          <thead className="bg-gray-100 border-b-2 border-gray-200">
+          <thead className="bg-gray-100 dark:bg-gray-700/50 border-b-2 border-gray-200 dark:border-gray-700">
             <tr>
-              <th className="text-left py-3 px-4 uppercase font-semibold text-sm">
+              <th className="text-left py-3 px-4 uppercase font-semibold text-sm text-gray-600 dark:text-gray-300">
                 Name
               </th>
-              <th className="text-left py-3 px-4 uppercase font-semibold text-sm">
+              <th className="text-left py-3 px-4 uppercase font-semibold text-sm text-gray-600 dark:text-gray-300">
                 Email
               </th>
-              <th className="text-left py-3 px-4 uppercase font-semibold text-sm">
+              <th className="text-left py-3 px-4 uppercase font-semibold text-sm text-gray-600 dark:text-gray-300">
                 Role
               </th>
-              <th className="text-center py-3 px-4 uppercase font-semibold text-sm">
+              <th className="text-center py-3 px-4 uppercase font-semibold text-sm text-gray-600 dark:text-gray-300">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="text-gray-700">
+          <tbody className="text-gray-700 dark:text-gray-300">
             {filteredUsers.length > 0 ? (
               filteredUsers.map((user) => (
                 <tr
                   key={user.id}
-                  className="hover:bg-gray-50 border-b border-gray-200"
+                  className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700"
                 >
                   <td className="py-3 px-4">{user.profile?.name || "N/A"}</td>
                   <td className="py-3 px-4">{user.email}</td>
@@ -303,10 +282,10 @@ const AdminUsersPage: React.FC = () => {
                     <span
                       className={`px-2 py-1 text-xs font-semibold rounded-full ${
                         user.role === "ADMIN"
-                          ? "bg-indigo-200 text-indigo-800"
+                          ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200"
                           : user.role === "MENTOR"
-                          ? "bg-green-200 text-green-800"
-                          : "bg-yellow-200 text-yellow-800"
+                          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                          : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
                       }`}
                     >
                       {user.role}
@@ -315,13 +294,13 @@ const AdminUsersPage: React.FC = () => {
                   <td className="py-3 px-4 text-center">
                     <button
                       onClick={() => openEditModal(user)}
-                      className="text-blue-600 hover:underline mr-4"
+                      className="text-blue-600 dark:text-blue-400 hover:underline mr-4"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => openDeleteModal(user)}
-                      className="text-red-600 hover:underline"
+                      className="text-red-600 dark:text-red-400 hover:underline"
                     >
                       Delete
                     </button>
@@ -352,7 +331,6 @@ const AdminUsersPage: React.FC = () => {
         </p>
       </ConfirmationModal>
 
-      {/* --- ADDED: Render the new EditUserModal --- */}
       <EditUserModal
         isOpen={isEditModalOpen}
         onClose={closeEditModal}
