@@ -18,9 +18,17 @@ import MessagesPage from "./pages/MessagesPage";
 import MentorProfilePage from "./pages/MentorProfilePage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
-import AuthCallbackPage from "./pages/AuthCallbackPage"; 
+import AuthCallbackPage from "./pages/AuthCallbackPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import GoalsPage from "./pages/GoalsPage";
+// Note: The following imports are redundant but kept as requested.
+import {
+  BrowserRouter as Router,
+  Routes as RouterRoutes,
+  Route as RouterRoute,
+  Link,
+} from "react-router-dom";
 
 function App() {
   return (
@@ -51,6 +59,15 @@ function App() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        {/* --- NEW: Added the route for the Goals Page --- */}
+        <Route
+          path="/goals"
+          element={
+            <ProtectedRoute>
+              <GoalsPage />
             </ProtectedRoute>
           }
         />

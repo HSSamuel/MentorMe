@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
+import { Link } from "react-router-dom";
 import apiClient from "../api/axios";
+import toast from "react-hot-toast";
 
 // --- Helper Icons ---
 const CloseIcon = () => (
@@ -93,21 +95,40 @@ const BackIcon = () => (
     />
   </svg>
 );
+const HistoryIcon = () => (
+  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+    <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 11H9v-2h2v2zm0-4H9V5h2v4z"></path>
+  </svg>
+);
+const TrashIcon = () => (
+  <svg
+    className="w-4 h-4 text-gray-400 hover:text-red-500"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+    ></path>
+  </svg>
+);
 
-// --- Help Articles Data ---
 const helpArticles = [
   {
-    title: "Mentor responsiveness tips",
+    title: "Mentor Responsiveness Tips",
     content:
       "To get the best response from mentors, make sure your initial message is clear and concise. Mention what you'd like to learn and what your goals are. This helps mentors quickly understand if they are a good fit for you.",
   },
   {
-    title: "Cancel a session request",
+    title: "How to Cancel a Session Request",
     content:
       "If you need to cancel a session request that is still pending, navigate to 'My Requests' from the dashboard. You will find a 'Cancel' button next to each pending request.",
   },
   {
-    title: "Session response time",
+    title: "Understanding Session Response Times",
     content:
       "Our mentors are active professionals and typically respond to session requests within 48 hours. If you haven't heard back after 2 days, we recommend reaching out to another mentor.",
   },
@@ -122,21 +143,60 @@ const helpArticles = [
       "Good goals are SMART: Specific, Measurable, Achievable, Relevant, and Time-bound. Work with your mentor to define 1-3 clear goals for your mentorship period to ensure you stay on track.",
   },
   {
+    title: "Preparing for Your First Session",
+    content:
+      "Come prepared with questions! Think about what you want to achieve, what challenges you're facing, and what you'd like to learn from your mentor. Having an agenda makes the session more productive.",
+  },
+  {
+    title: "What if I can't find a mentor?",
+    content:
+      "If you can't find a mentor with the exact skills you're looking for, try broadening your search. Sometimes a mentor with experience in a related field can provide invaluable and unexpected insights.",
+  },
+  {
+    title: "Updating Your Profile",
+    content:
+      "A complete and up-to-date profile is key to attracting the right mentors or mentees. Make sure your bio, skills, and goals accurately reflect who you are and what you're looking for.",
+  },
+  {
+    title: "Using the AI Assistant",
+    content:
+      "Our AI assistant can help you with a variety of tasks, from setting S.M.A.R.T. goals to getting quick answers about the platform. Just open the chat and ask away!",
+  },
+  {
     title: "Get In Touch",
     content: "Reach me @ smkmayomisamuel@gmail.com.",
   },
 ];
 
 const suggestionChips = [
-  "Help me write a cover letter",
+  "About MentorMe",
+  "How can I connect with mentors?",
+  "Give me some relevant skills",
+  "Help me set a S.M.A.R.T. goal",
   "How to prepare for an interview?",
   "What are some good resume tips?",
 ];
 
+interface Message {
+  sender: "USER" | "AI";
+  content: string;
+  createdAt?: string;
+}
+
+interface Conversation {
+  id: string;
+  title: string;
+  updatedAt: string;
+  _count?: {
+    messages: number;
+  };
+}
+
 const AIChatAssistant = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("chat");
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<
     string | null
   >(null);
@@ -150,6 +210,9 @@ const AIChatAssistant = () => {
     title: "",
     content: "",
   });
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -158,6 +221,49 @@ const AIChatAssistant = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const fetchConversations = async () => {
+    try {
+      const { data } = await apiClient.get<Conversation[]>("/ai/conversations");
+      setConversations(data);
+    } catch (error) {
+      console.error("Failed to fetch conversations:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchConversations();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!activeConversationId) {
+        setMessages([]);
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const { data } = await apiClient.get<Message[]>(
+          `/ai/messages/${activeConversationId}`
+        );
+        setMessages(data);
+      } catch (error) {
+        console.error("Failed to fetch messages:", error);
+        setMessages([
+          {
+            sender: "AI",
+            content: "Error: Could not load messages for this conversation.",
+          },
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMessages();
+  }, [activeConversationId]);
+
   const handleArticleClick = (article: { title: string; content: string }) => {
     setCurrentArticle(article);
     setHelpView("article");
@@ -165,39 +271,65 @@ const AIChatAssistant = () => {
 
   const handleSend = async (messageToSend?: string) => {
     const currentInput = messageToSend || input;
-    if (!currentInput.trim() || isLoading) return;
+    if ((!currentInput.trim() && !attachedFile) || isLoading) return;
 
-    const userMessage = { sender: "USER", content: currentInput };
+    const userMessageContent = attachedFile
+      ? `${currentInput} [File: ${attachedFile.name}]`
+      : currentInput;
+
+    const userMessage: Message = {
+      sender: "USER",
+      content: userMessageContent,
+    };
     setMessages((prev) => [...prev, userMessage]);
 
     setInput("");
     setIsLoading(true);
 
-    const endpoint = selectedAI === "cohere" ? "/ai/chat/cohere" : "/ai/chat";
-
     try {
-      const { data } = await apiClient.post(endpoint, {
-        message: currentInput,
-        conversationId: activeConversationId,
-      });
-      setMessages((prev) => [...prev, data.reply]);
-      if (!activeConversationId) {
-        setActiveConversationId(data.conversationId);
+      let response;
+      if (attachedFile) {
+        const formData = new FormData();
+        formData.append("file", attachedFile);
+        formData.append("prompt", currentInput);
+        if (activeConversationId) {
+          formData.append("conversationId", activeConversationId);
+        }
+
+        response = await apiClient.post("/ai/analyze-file", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      } else {
+        const endpoint =
+          selectedAI === "cohere" ? "/ai/chat/cohere" : "/ai/chat";
+        response = await apiClient.post(endpoint, {
+          message: currentInput,
+          conversationId: activeConversationId,
+        });
+      }
+
+      setMessages((prev) => [...prev, response.data.reply]);
+
+      if (!activeConversationId && response.data.conversationId) {
+        setActiveConversationId(response.data.conversationId);
+        fetchConversations();
       }
     } catch (error: any) {
       const errorMessage =
-        error.response?.data?.error ||
-        "Thank you for visiting our website. Kindly register or login to explore our services.";
+        error.response?.data?.error || "An error occurred. Please try again.";
       setMessages((prev) => [
         ...prev,
         { sender: "AI", content: `${errorMessage}` },
       ]);
     } finally {
       setIsLoading(false);
+      setAttachedFile(null);
+      setFilePreview(null);
     }
   };
 
   const handleSuggestionClick = (suggestion: string) => {
+    setInput(suggestion);
     handleSend(suggestion);
   };
 
@@ -208,14 +340,28 @@ const AIChatAssistant = () => {
   const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      console.log("Selected file:", file.name);
-      setInput((prev) => `${prev} [Attached: ${file.name}] `);
+      setAttachedFile(file);
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setFilePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        setFilePreview(file.name);
+      }
     }
   };
 
   const handleEmojiSelect = (emoji: string) => {
     setInput((prev) => prev + emoji);
     setShowEmojiPalette(false);
+  };
+
+  const handleNewChat = () => {
+    setActiveConversationId(null);
+    setMessages([]);
+    setActiveTab("chat");
   };
 
   const handleVoiceInput = () => {
@@ -234,8 +380,10 @@ const AIChatAssistant = () => {
     }
 
     recognitionRef.current = new SpeechRecognition();
+    recognitionRef.current.lang = "en-US";
     recognitionRef.current.continuous = true;
     recognitionRef.current.interimResults = true;
+    recognitionRef.current.maxAlternatives = 5;
 
     recognitionRef.current.onstart = () => setIsRecording(true);
     recognitionRef.current.onend = () => setIsRecording(false);
@@ -247,16 +395,74 @@ const AIChatAssistant = () => {
 
     recognitionRef.current.onresult = (event: any) => {
       let finalTranscript = "";
+      let highestConfidence = 0;
+
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
+          for (let j = 0; j < event.results[i].length; j++) {
+            if (event.results[i][j].confidence > highestConfidence) {
+              highestConfidence = event.results[i][j].confidence;
+              finalTranscript = event.results[i][j].transcript;
+            }
+          }
         }
       }
       if (finalTranscript) {
-        setInput((prev) => prev + finalTranscript);
+        setInput((prev) => prev + finalTranscript + " ");
       }
     };
     recognitionRef.current.start();
+  };
+
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (window.confirm("Are you sure you want to delete this chat history?")) {
+      try {
+        await apiClient.delete(`/ai/conversations/${conversationId}`);
+        setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+        if (activeConversationId === conversationId) {
+          setActiveConversationId(null);
+          setMessages([]);
+        }
+        toast.success("Conversation deleted.");
+      } catch (error) {
+        toast.error("Failed to delete conversation.");
+        console.error("Failed to delete conversation:", error);
+      }
+    }
+  };
+
+  const MessageContent = ({ content }: { content: string }) => {
+    // Regex to split by bold tags (**...**) or the specific link markdown, keeping the delimiters
+    const parts = content.split(/(\[View Goals\]\(#\/goals\))|(\*\*.*?\*\*)/g);
+
+    return (
+      <>
+        {parts.map((part, index) => {
+          if (!part) return null;
+
+          // Handle bold text
+          if (part.startsWith("**") && part.endsWith("**")) {
+            return <strong key={index}>{part.slice(2, -2)}</strong>;
+          }
+
+          // Handle the specific goal link
+          if (part === "[View Goals](#/goals)") {
+            return (
+              <Link
+                key={index}
+                to="/goals"
+                className="text-blue-600 font-bold underline hover:text-blue-800"
+              >
+                View Goals
+              </Link>
+            );
+          }
+
+          // Render plain text
+          return <React.Fragment key={index}>{part}</React.Fragment>;
+        })}
+      </>
+    );
   };
 
   return (
@@ -289,6 +495,16 @@ const AIChatAssistant = () => {
                 <ChatIcon /> Chat
               </button>
               <button
+                onClick={() => setActiveTab("history")}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors flex items-center gap-2 ${
+                  activeTab === "history"
+                    ? "bg-white text-blue-600"
+                    : "bg-blue-700 text-white"
+                }`}
+              >
+                <HistoryIcon /> History
+              </button>
+              <button
                 onClick={() => {
                   setActiveTab("help");
                   setHelpView("list");
@@ -304,7 +520,7 @@ const AIChatAssistant = () => {
             </div>
           </div>
 
-          {activeTab === "chat" ? (
+          {activeTab === "chat" && (
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="p-2 border-b">
                 <select
@@ -317,10 +533,10 @@ const AIChatAssistant = () => {
                 </select>
               </div>
               <div className="flex-1 p-4 overflow-y-auto space-y-4">
-                {messages.length === 0 && (
+                {messages.length === 0 && !isLoading && (
                   <div className="text-center p-8">
                     <div className="inline-block p-4 bg-blue-100 rounded-full">
-                      <ChatIcon />
+                      <FloatingButtonChatIcon />
                     </div>
                     <h3 className="mt-4 font-semibold text-lg">
                       How can I help you today?
@@ -352,7 +568,7 @@ const AIChatAssistant = () => {
                           : "bg-gray-200 text-gray-800"
                       }`}
                     >
-                      {msg.content}
+                      <MessageContent content={msg.content} />
                     </div>
                   </div>
                 ))}
@@ -364,6 +580,30 @@ const AIChatAssistant = () => {
                 <div ref={messagesEndRef} />
               </div>
               <div className="p-2 border-t border-gray-200 relative">
+                {filePreview && (
+                  <div className="p-2 relative">
+                    {attachedFile?.type.startsWith("image/") ? (
+                      <img
+                        src={filePreview}
+                        alt="Preview"
+                        className="max-h-24 rounded-lg"
+                      />
+                    ) : (
+                      <div className="bg-gray-100 p-2 rounded-lg text-sm text-gray-700">
+                        {filePreview}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        setAttachedFile(null);
+                        setFilePreview(null);
+                      }}
+                      className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                )}
                 {showEmojiPalette && (
                   <div className="absolute bottom-16 bg-white border rounded-lg p-2 shadow-lg">
                     {["😊", "😂", "❤️", "👍", "🤔", "🎉"].map((emoji) => (
@@ -377,26 +617,54 @@ const AIChatAssistant = () => {
                     ))}
                   </div>
                 )}
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyPress={(e) =>
-                    e.key === "Enter" &&
-                    !e.shiftKey &&
-                    (e.preventDefault(), handleSend())
-                  }
-                  className="w-full p-2 resize-none border-none focus:ring-0 text-sm"
-                  placeholder="Compose your message..."
-                  disabled={isLoading}
-                  rows={2}
-                />
-                <div className="flex justify-end space-x-3 p-2">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSend();
+                  }}
+                  className="flex items-end gap-2"
+                >
+                  <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={(e) =>
+                      e.key === "Enter" &&
+                      !e.shiftKey &&
+                      (e.preventDefault(), handleSend())
+                    }
+                    className="flex-grow p-2 resize-none border border-gray-300 rounded-lg focus:ring-1 focus:ring-blue-500 text-sm"
+                    placeholder="Compose your message..."
+                    disabled={isLoading}
+                    rows={1}
+                  />
                   <button
+                    type="submit"
+                    disabled={isLoading || (!input.trim() && !attachedFile)}
+                    className="bg-blue-600 text-white rounded-full p-2.5 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors hover:bg-blue-700 flex-shrink-0"
+                    aria-label="Send message"
+                  >
+                    <svg
+                      className="w-5 h-5 transform rotate-90"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                    </svg>
+                  </button>
+                </form>
+                <div className="flex justify-end space-x-1 mt-1">
+                  <button
+                    type="button"
                     onClick={() => setShowEmojiPalette(!showEmojiPalette)}
+                    className="p-2 rounded-full hover:bg-gray-100"
                   >
                     <EmojiIcon />
                   </button>
-                  <button onClick={handleAttachment}>
+                  <button
+                    type="button"
+                    onClick={handleAttachment}
+                    className="p-2 rounded-full hover:bg-gray-100"
+                  >
                     <AttachmentIcon />
                   </button>
                   <input
@@ -404,14 +672,76 @@ const AIChatAssistant = () => {
                     ref={fileInputRef}
                     onChange={handleFileSelected}
                     className="hidden"
+                    accept="image/jpeg,image/png,image/jpg,application/pdf"
                   />
-                  <button onClick={handleVoiceInput}>
+                  <button
+                    type="button"
+                    onClick={handleVoiceInput}
+                    className="p-2 rounded-full hover:bg-gray-100"
+                  >
                     <MicIcon isRecording={isRecording} />
                   </button>
                 </div>
               </div>
             </div>
-          ) : (
+          )}
+
+          {activeTab === "history" && (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="p-2 border-b">
+                <button
+                  onClick={handleNewChat}
+                  className="w-full p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-semibold"
+                >
+                  + Start New Chat
+                </button>
+              </div>
+              <div className="flex-1 p-4 overflow-y-auto space-y-2">
+                <h3 className="font-bold mb-2 text-center text-gray-600">
+                  Past Conversations
+                </h3>
+                {conversations.length > 0 ? (
+                  conversations.map((convo) => (
+                    <div
+                      key={convo.id}
+                      className="p-3 rounded-md hover:bg-gray-100 cursor-pointer border flex justify-between items-center group"
+                    >
+                      <div
+                        onClick={() => {
+                          setActiveConversationId(convo.id);
+                          setActiveTab("chat");
+                        }}
+                        className="flex-grow min-w-0"
+                      >
+                        <p className="font-semibold text-sm truncate">
+                          {convo.title}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Last updated:{" "}
+                          {new Date(convo.updatedAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteConversation(convo.id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-gray-500 mt-8">
+                    No conversation history yet.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "help" && (
             <div className="flex-1 p-4 overflow-y-auto">
               {helpView === "list" ? (
                 <div>
