@@ -31,7 +31,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-800 bg-opacity-70 rounded-lg shadow-xl w-full max-w-xs m-4">
+    <div className="p-6 bg-yellow-970/60 backdrop-blur-sm rounded-lg shadow-xl w-full max-w-xs m-4">
       <div className="text-center mb-4">
         <h2 className="text-xl font-bold text-white">Welcome Back</h2>
         <p className="text-gray-300 text-xs">Sign in to your account</p>
@@ -47,7 +47,7 @@ const LoginPage = () => {
           </label>
           <input
             id="email"
-            className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white text-sm"
+            className="px-3 py-1.5 bg-gray-700/50 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white text-sm"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -72,7 +72,7 @@ const LoginPage = () => {
           </div>
           <input
             id="password"
-            className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white text-sm"
+            className="px-3 py-1.5 bg-gray-700/50 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white text-sm"
             type={showPassword ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -108,7 +108,7 @@ const LoginPage = () => {
       <div className="flex flex-col gap-2">
         <button
           onClick={() => handleSocialLogin("google")}
-          className="flex items-center justify-center gap-3 w-full px-4 py-1.5 border border-gray-600 rounded-lg text-white font-semibold bg-gray-700 hover:bg-gray-600 transition-colors text-sm"
+          className="flex items-center justify-center gap-3 w-full px-4 py-1.5 border border-gray-500 rounded-lg text-white font-semibold bg-gray-700/50 hover:bg-gray-700 transition-colors text-sm"
         >
           <GoogleIcon />
           Continue with Google
@@ -123,7 +123,7 @@ const LoginPage = () => {
       </div>
 
       <div className="text-center mt-3">
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-300">
           Don't have an account?{" "}
           <Link
             to="/register"
@@ -136,4 +136,5 @@ const LoginPage = () => {
     </div>
   );
 };
+
 export default LoginPage;

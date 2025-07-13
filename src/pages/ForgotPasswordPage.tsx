@@ -22,7 +22,7 @@ const ForgotPasswordPage = () => {
 
   return (
     <div className="flex justify-center items-center min-h-screen">
-      <div className="p-8 bg-gray-800 bg-opacity-50 backdrop-blur-sm rounded-lg shadow-xl w-full max-w-sm m-4">
+      <div className="p-8 bg-yellow-970/60 backdrop-blur-sm rounded-lg shadow-xl w-full max-w-sm m-4">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-white">Forgot Password</h2>
           <p className="text-gray-400">

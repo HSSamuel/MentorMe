@@ -54,7 +54,7 @@ const RegisterPage = () => {
   }
 
   return (
-    <div className="p-6 bg-gray-800 bg-opacity-70 rounded-lg shadow-xl w-full max-w-xs m-4">
+    <div className="p-6 bg-yellow-970/60 backdrop-blur-sm rounded-lg shadow-xl w-full max-w-xs m-4">
       <div className="text-center mb-4">
         <h2 className="text-xl font-bold text-white">Create Your Account</h2>
       </div>
