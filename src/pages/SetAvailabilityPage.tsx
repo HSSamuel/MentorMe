@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import apiClient from "../api/axios";
-import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
 
 const daysOfWeek = [
   "Sunday",
@@ -13,7 +13,8 @@ const daysOfWeek = [
 ];
 
 interface AvailabilityBlock {
-  day: string;
+  id: number; // Use a unique ID for each block for better state management
+  days: string[];
   startTime: string;
   endTime: string;
 }
@@ -21,72 +22,143 @@ interface AvailabilityBlock {
 const SetAvailabilityPage = () => {
   const [availability, setAvailability] = useState<AvailabilityBlock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  useEffect(() => {
-    const fetchAvailability = async () => {
-      setIsLoading(true);
-      try {
-        const response = await apiClient.get("/sessions/availability/me");
-        if (response.data && response.data.length > 0) {
-          setAvailability(response.data);
-        }
-      } catch (err) {
-        console.log("No existing availability found or error fetching.");
-      } finally {
-        setIsLoading(false);
+  // --- Data Fetching ---
+  const fetchAvailability = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await apiClient.get("/sessions/availability/me");
+      if (response.data && response.data.length > 0) {
+        // Group slots by time to create blocks
+        const blocks = response.data.reduce((acc: any, slot: any) => {
+          const key = `${slot.startTime}-${slot.endTime}`;
+          if (!acc[key]) {
+            acc[key] = {
+              id: Math.random(),
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              days: [],
+            };
+          }
+          acc[key].days.push(slot.day);
+          return acc;
+        }, {});
+        setAvailability(Object.values(blocks));
+      } else {
+        // If there is no availability, clear the local state
+        setAvailability([]);
       }
-    };
-    fetchAvailability();
+    } catch (err) {
+      console.log("No existing availability found or error fetching.");
+      setAvailability([]); // Clear on error as well
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const handleAddTimeSlot = (day: string) => {
+  useEffect(() => {
+    fetchAvailability();
+  }, [fetchAvailability]);
+
+  // --- State Handlers ---
+  const handleAddBlock = () => {
     setAvailability([
       ...availability,
-      { day, startTime: "10:00", endTime: "11:00" },
+      {
+        id: Date.now(),
+        days: [],
+        startTime: "09:00",
+        endTime: "17:00",
+      },
     ]);
   };
 
-  const handleRemoveTimeSlot = (index: number) => {
-    setAvailability(availability.filter((_, i) => i !== index));
+  const handleRemoveBlock = (id: number) => {
+    setAvailability(availability.filter((block) => block.id !== id));
   };
 
-  const handleInputChange = (
-    index: number,
-    field: keyof AvailabilityBlock,
+  const handleBlockChange = (
+    id: number,
+    field: "startTime" | "endTime",
     value: string
   ) => {
-    const updatedAvailability = [...availability];
-    updatedAvailability[index] = {
-      ...updatedAvailability[index],
-      [field]: value,
-    };
-    setAvailability(updatedAvailability);
+    setAvailability(
+      availability.map((block) =>
+        block.id === id ? { ...block, [field]: value } : block
+      )
+    );
   };
 
+  const handleDayToggle = (id: number, day: string) => {
+    setAvailability(
+      availability.map((block) => {
+        if (block.id === id) {
+          const days = block.days.includes(day)
+            ? block.days.filter((d) => d !== day)
+            : [...block.days, day];
+          return { ...block, days };
+        }
+        return block;
+      })
+    );
+  };
+
+  // --- Submission and Deletion Logic ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSuccess("");
 
-    for (const slot of availability) {
+    const flatAvailability = availability.flatMap((block) =>
+      block.days.map((day) => ({
+        day,
+        startTime: block.startTime,
+        endTime: block.endTime,
+      }))
+    );
+
+    for (const slot of flatAvailability) {
       if (slot.startTime >= slot.endTime) {
-        setError(
-          `Error in ${slot.day}'s time slot: End time must be after start time.`
+        toast.error(
+          `Error in a time slot for ${slot.day}: End time must be after start time.`
         );
         return;
       }
     }
 
-    try {
-      await apiClient.post("/sessions/availability", { availability });
-      setSuccess("Your availability has been updated successfully!");
-    } catch (err: any) {
-      const errorMessage =
+    const promise = apiClient.post("/sessions/availability", {
+      availability: flatAvailability,
+    });
+
+    toast.promise(promise, {
+      loading: "Saving availability...",
+      success: (res) => {
+        // Re-fetch the availability to show the saved state
+        fetchAvailability();
+        return "Availability updated successfully!";
+      },
+      error: (err) =>
         err.response?.data?.message ||
-        "Failed to save availability. Please try again.";
-      setError(errorMessage);
+        "Failed to save availability. Please try again.",
+    });
+  };
+
+  const handleClearAll = async () => {
+    if (
+      window.confirm(
+        "Are you sure you want to clear your entire weekly availability?"
+      )
+    ) {
+      const promise = apiClient.post("/sessions/availability", {
+        availability: [], // Send an empty array to clear
+      });
+
+      toast.promise(promise, {
+        loading: "Clearing your availability...",
+        success: () => {
+          setAvailability([]); // Clear state locally
+          return "Your availability has been cleared.";
+        },
+        error: "Failed to clear availability.",
+      });
     }
   };
 
@@ -96,9 +168,10 @@ const SetAvailabilityPage = () => {
     );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Form for setting availability */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4 sm:mb-0">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-0">
           Set Your Weekly Availability
         </h1>
         <button
@@ -109,104 +182,105 @@ const SetAvailabilityPage = () => {
         </button>
       </div>
 
-      <div className="bg-white p-4 sm:p-8 rounded-lg shadow-lg">
-        {availability.length === 0 && (
-          <div className="text-center py-16">
-            <h3 className="text-xl font-semibold text-gray-700">
-              Your calendar is empty
-            </h3>
-            <p className="text-gray-500 my-2">
-              Add your available time slots to start receiving session requests.
-            </p>
+      <div className="bg-white dark:bg-gray-800 p-4 sm:p-8 rounded-lg shadow-lg space-y-6">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Define blocks of time when you are typically available for mentorship
+          sessions each week. You can add multiple blocks to accommodate breaks.
+        </p>
+
+        {availability.length === 0 && !isLoading && (
+          <div className="text-center py-8">
             <button
-              onClick={() => handleAddTimeSlot("Monday")}
-              className="mt-4 px-6 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-colors"
+              onClick={handleAddBlock}
+              className="px-6 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-colors"
             >
               + Add Your First Time Slot
             </button>
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {daysOfWeek.map((day) => (
-            <div key={day} className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-bold text-lg text-center mb-4">{day}</h4>
-              <div className="space-y-4">
-                {availability
-                  .filter((slot) => slot.day === day)
-                  .map((slot, index) => {
-                    const originalIndex = availability.findIndex(
-                      (s) => s === slot
-                    );
-                    return (
-                      <div
-                        key={originalIndex}
-                        className="p-3 bg-white rounded-lg shadow-sm border"
-                      >
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="time"
-                            value={slot.startTime}
-                            onChange={(e) =>
-                              handleInputChange(
-                                originalIndex,
-                                "startTime",
-                                e.target.value
-                              )
-                            }
-                            className="w-full px-2 py-1 border rounded-md"
-                          />
-                          <span>-</span>
-                          <input
-                            type="time"
-                            value={slot.endTime}
-                            onChange={(e) =>
-                              handleInputChange(
-                                originalIndex,
-                                "endTime",
-                                e.target.value
-                              )
-                            }
-                            className="w-full px-2 py-1 border rounded-md"
-                          />
-                        </div>
-                        <button
-                          onClick={() => handleRemoveTimeSlot(originalIndex)}
-                          className="text-xs text-red-500 hover:underline mt-2"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    );
-                  })}
-                <button
-                  onClick={() => handleAddTimeSlot(day)}
-                  className="w-full py-2 text-sm text-blue-500 border-2 border-dashed border-blue-300 rounded-lg hover:bg-blue-50"
+        {availability.map((block) => (
+          <div
+            key={block.id}
+            className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600"
+          >
+            {/* Time Inputs */}
+            <div className="flex items-center gap-4 mb-4">
+              <input
+                type="time"
+                value={block.startTime}
+                onChange={(e) =>
+                  handleBlockChange(block.id, "startTime", e.target.value)
+                }
+                className="w-full p-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              />
+              <span className="font-semibold dark:text-gray-300">-</span>
+              <input
+                type="time"
+                value={block.endTime}
+                onChange={(e) =>
+                  handleBlockChange(block.id, "endTime", e.target.value)
+                }
+                className="w-full p-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              />
+              <button
+                onClick={() => handleRemoveBlock(block.id)}
+                className="text-red-500 hover:text-red-700"
+                aria-label="Remove time block"
+              >
+                <svg
+                  className="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  + Add Time
-                </button>
-              </div>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              </button>
             </div>
-          ))}
-        </div>
+
+            {/* Day Toggles */}
+            <div className="flex flex-wrap gap-2">
+              {daysOfWeek.map((day) => (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => handleDayToggle(block.id, day)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-full transition-colors ${
+                    block.days.includes(day)
+                      ? "bg-blue-600 text-white shadow"
+                      : "bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500"
+                  }`}
+                >
+                  {day.substring(0, 3)}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
 
         {availability.length > 0 && (
-          <div className="mt-8 border-t border-gray-200 pt-6 text-center">
-            {error && (
-              <p className="text-red-500 text-sm text-center mb-4">{error}</p>
-            )}
-            {success && (
-              <p className="text-green-500 text-sm text-center mb-4">
-                {success}
-              </p>
-            )}
+          <>
             <button
-              onClick={handleSubmit}
-              className="w-full sm:w-auto px-8 py-3 border-none rounded-lg bg-blue-600 text-white text-lg font-semibold cursor-pointer transition-colors hover:bg-blue-700"
+              onClick={handleAddBlock}
+              className="w-full py-2 text-sm text-blue-600 dark:text-blue-400 border-2 border-dashed border-blue-400 dark:border-blue-500 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/50"
             >
-              Save All Changes
+              + Add another time block
             </button>
-          </div>
+            <div className="text-center mt-4">
+              <button
+                onClick={handleClearAll}
+                className="text-sm text-red-500 hover:underline"
+              >
+                Clear All Availability
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>

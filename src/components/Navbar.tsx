@@ -5,6 +5,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import NotificationBell from "./NotificationBell";
 import apiClient from "../api/axios";
 import logo from "../assets/logo.png";
+import { io, Socket } from "socket.io-client"; // Import socket.io-client
 
 // Sun and Moon icons for the toggle button
 const SunIcon = () => (
@@ -28,11 +29,12 @@ const MoonIcon = () => (
 );
 
 const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
-  const { user, logout, isLoading } = useAuth();
+  const { user, logout, isLoading, token, refetchUser } = useAuth(); // Add refetchUser
   const { theme, toggleTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<Socket | null>(null);
 
   const baseLinkClasses =
     "px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ease-in-out";
@@ -57,6 +59,29 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [profileRef]);
+
+  // Add this useEffect to handle the real-time avatar update
+  useEffect(() => {
+    if (token && user) {
+      socketRef.current = io(import.meta.env.VITE_API_BASE_URL, {
+        auth: { token },
+      });
+
+      socketRef.current.on(
+        "avatarUpdated",
+        ({ userId: updatedUserId }: { userId: string }) => {
+          if (user?.id === updatedUserId) {
+            // Refetch user data to get the new avatar URL
+            refetchUser();
+          }
+        }
+      );
+
+      return () => {
+        socketRef.current?.disconnect();
+      };
+    }
+  }, [token, user, refetchUser]);
 
   const getAvatarUrl = () => {
     if (!user || !user.profile?.avatarUrl) {
@@ -124,6 +149,9 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
         )}
         <NavLink to="/my-sessions" className={linkClass}>
           My Sessions
+        </NavLink>
+        <NavLink to="/goals" className={linkClass}>
+          Goals
         </NavLink>
         <NavLink to="/messages" className={linkClass}>
           Messages

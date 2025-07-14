@@ -3,6 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import apiClient from "../api/axios";
 import { Link } from "react-router-dom";
 import StatCardSkeleton from "../components/StatCardSkeleton";
+import MentorCard from "../components/MentorCard";
 
 // Icon components
 const UsersIcon = () => (
@@ -85,26 +86,38 @@ const DashboardPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [nextSession, setNextSession] = useState<any>(null);
   const [tipOfTheDay, setTipOfTheDay] = useState("");
+  const [recommendedMentors, setRecommendedMentors] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
+      // --- DEBUGGING ---
+      console.log("DashboardPage: useEffect triggered.");
+      console.log("Auth Loading:", isAuthLoading);
+      console.log("User Object:", user);
+
       if (isAuthLoading || !user) {
         return;
       }
 
       setIsLoading(true);
       try {
-        let statsPromise, sessionsPromise;
+        let statsPromise, sessionsPromise, statsUrl;
 
         if (user.role === "ADMIN") {
-          statsPromise = apiClient.get("/admin/stats");
+          statsUrl = "/admin/stats";
+          statsPromise = apiClient.get(statsUrl);
         } else if (user.role === "MENTOR") {
-          statsPromise = apiClient.get(`/users/mentor/${user.id}/stats`);
+          statsUrl = `/users/mentor/${user.id}/stats`;
+          statsPromise = apiClient.get(statsUrl);
           sessionsPromise = apiClient.get("/sessions/mentor");
         } else {
-          statsPromise = apiClient.get("/users/mentee/stats");
+          statsUrl = "/users/mentee/stats";
+          statsPromise = apiClient.get(statsUrl);
           sessionsPromise = apiClient.get("/sessions/mentee");
         }
+
+        // --- DEBUGGING ---
+        console.log("Fetching stats from URL:", statsUrl);
 
         const responses = await Promise.all(
           [statsPromise, sessionsPromise].filter(Boolean)
@@ -125,6 +138,12 @@ const DashboardPage = () => {
           if (upcoming.length > 0) {
             setNextSession(upcoming[0]);
           }
+        }
+        if (user.role === "MENTEE") {
+          const recommendationsRes = await apiClient.get(
+            "/users/mentors/recommended"
+          );
+          setRecommendedMentors(recommendationsRes.data);
         }
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
@@ -262,12 +281,14 @@ const DashboardPage = () => {
         title="Total Mentors"
         value={stats.totalMentors}
         icon={<UsersIcon />}
+        linkTo="/admin/users"
         color="bg-gradient-to-br from-blue-400 to-indigo-500"
       />
       <StatCard
         title="Total Mentees"
         value={stats.totalMentees}
         icon={<UsersIcon />}
+        linkTo="/admin/users"
         color="bg-gradient-to-br from-blue-400 to-indigo-500"
       />
       <StatCard
@@ -301,6 +322,7 @@ const DashboardPage = () => {
         title="Your Mentees"
         value={stats.menteeCount}
         icon={<UsersIcon />}
+        linkTo="/my-sessions"
         color="bg-gradient-to-br from-blue-400 to-indigo-500"
       />
       <StatCard
@@ -335,36 +357,51 @@ const DashboardPage = () => {
   );
 
   const renderMenteeDashboard = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <StatCard
-        title="Your Mentors"
-        value={stats.mentorCount}
-        icon={<UsersIcon />}
-        linkTo="/my-mentors"
-        color="bg-gradient-to-br from-blue-400 to-indigo-500"
-      />
-      <StatCard
-        title="Pending Requests"
-        value={stats.pendingRequests}
-        icon={<InboxInIcon />}
-        linkTo="/my-requests"
-        color="bg-gradient-to-br from-green-400 to-blue-500"
-      />
-      <StatCard
-        title="Upcoming Sessions"
-        value={stats.upcomingSessions}
-        icon={<CalendarIcon />}
-        linkTo="/my-sessions"
-        color="bg-gradient-to-br from-purple-400 to-pink-500"
-      />
-      <StatCard
-        title="Completed Sessions"
-        value={stats.completedSessions}
-        icon={<CalendarIcon />}
-        linkTo="/my-sessions"
-        color="bg-gradient-to-br from-purple-400 to-pink-500"
-      />
-    </div>
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <StatCard
+          title="Your Mentors"
+          value={stats.mentorCount}
+          icon={<UsersIcon />}
+          linkTo="/my-mentors"
+          color="bg-gradient-to-br from-blue-400 to-indigo-500"
+        />
+        <StatCard
+          title="Pending Requests"
+          value={stats.pendingRequests}
+          icon={<InboxInIcon />}
+          linkTo="/my-requests"
+          color="bg-gradient-to-br from-green-400 to-blue-500"
+        />
+        <StatCard
+          title="Upcoming Sessions"
+          value={stats.upcomingSessions}
+          icon={<CalendarIcon />}
+          linkTo="/my-sessions"
+          color="bg-gradient-to-br from-purple-400 to-pink-500"
+        />
+        <StatCard
+          title="Completed Sessions"
+          value={stats.completedSessions}
+          icon={<CalendarIcon />}
+          linkTo="/my-sessions"
+          color="bg-gradient-to-br from-purple-400 to-pink-500"
+        />
+      </div>
+
+      {recommendedMentors.length > 0 && (
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+            Recommended Mentors for You
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {recommendedMentors.map((mentor) => (
+              <MentorCard key={mentor.id} mentor={mentor} />
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 
   const renderLoading = () => (

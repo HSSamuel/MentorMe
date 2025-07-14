@@ -78,12 +78,12 @@ const MicIcon = ({ isRecording }: { isRecording: boolean }) => (
 );
 const ChatIcon = () => (
   <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2z"></path>
+    <path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z" />
   </svg>
 );
 const FloatingButtonChatIcon = () => (
   <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2z" />
+    <path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z" />
   </svg>
 );
 const BackIcon = () => (
@@ -170,6 +170,7 @@ const helpArticles = [
 
 const suggestionChips = [
   "About MentorMe",
+  "How to find a mentor?",
   "Give me some relevant skills",
   "Help me set a S.M.A.R.T. goal",
   "How to prepare for an interview?",

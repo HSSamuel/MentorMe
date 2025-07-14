@@ -8,16 +8,20 @@ const StatusBadge = ({ status }: { status: string }) => {
 
   switch (status) {
     case "PENDING":
-      specificClasses = "bg-yellow-100 text-yellow-800";
+      specificClasses =
+        "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200";
       break;
     case "ACCEPTED":
-      specificClasses = "bg-green-100 text-green-800";
+      specificClasses =
+        "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200";
       break;
     case "REJECTED":
-      specificClasses = "bg-red-100 text-red-800";
+      specificClasses =
+        "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200";
       break;
     default:
-      specificClasses = "bg-gray-100 text-gray-800";
+      specificClasses =
+        "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300";
   }
 
   return <span className={`${baseClasses} ${specificClasses}`}>{status}</span>;
@@ -50,22 +54,22 @@ const MyRequestsPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
         My Sent Requests
       </h1>
       {requests.length > 0 ? (
-        <div className="bg-white rounded-lg shadow-md">
-          <ul className="divide-y divide-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
             {requests.map((req) => (
               <li
                 key={req.id}
                 className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between"
               >
                 <div className="mb-4 sm:mb-0">
-                  <p className="text-lg font-semibold text-gray-800">
+                  <p className="text-lg font-semibold text-gray-800 dark:text-gray-100">
                     Mentor: {req.mentor.profile.name}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     Requested on: {new Date(req.createdAt).toLocaleDateString()}
                   </p>
                 </div>
@@ -85,11 +89,11 @@ const MyRequestsPage = () => {
           </ul>
         </div>
       ) : (
-        <div className="text-center py-16 px-6 bg-white rounded-lg shadow-md">
-          <h3 className="text-xl font-semibold text-gray-800">
+        <div className="text-center py-16 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
             No Requests Sent
           </h3>
-          <p className="text-gray-500 mt-2">
+          <p className="text-gray-500 dark:text-gray-400 mt-2">
             You haven't requested mentorship from anyone yet.
           </p>
           <Link

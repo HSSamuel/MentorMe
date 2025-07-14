@@ -8,6 +8,7 @@ const MentorListPage = () => {
   const [allSkills, setAllSkills] = useState([]);
   const [filteredMentors, setFilteredMentors] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [requestedMentorIds, setRequestedMentorIds] = useState(new Set());
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -23,8 +24,8 @@ const MentorListPage = () => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // Fetch paginated mentors and all skills
-        const [mentorsRes, skillsRes] = await Promise.all([
+        // --- FIX: Added 'requestsRes' to the destructuring array ---
+        const [mentorsRes, skillsRes, requestsRes] = await Promise.all([
           apiClient.get(`/users/mentors?page=${currentPage}&limit=9`),
           apiClient.get("/users/skills"),
           apiClient.get("/requests/sent"),
@@ -34,6 +35,8 @@ const MentorListPage = () => {
         setFilteredMentors(mentorsRes.data.mentors);
         setTotalPages(mentorsRes.data.totalPages);
         setAllSkills(skillsRes.data);
+
+        // This will now work correctly
         const requestedIds = new Set(
           requestsRes.data.map((req: any) => req.mentorId)
         );
@@ -102,7 +105,11 @@ const MentorListPage = () => {
           <>
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredMentors.map((mentor: any) => (
-                <MentorCard key={mentor.id} mentor={mentor} />
+                <MentorCard
+                  key={mentor.id}
+                  mentor={mentor}
+                  isAlreadyRequested={requestedMentorIds.has(mentor.id)}
+                />
               ))}
             </div>
             {/* Pagination Controls */}

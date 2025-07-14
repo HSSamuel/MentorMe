@@ -4,12 +4,19 @@ import apiClient from "../api/axios";
 import { useAuth } from "../contexts/AuthContext";
 import { GoogleIcon, FacebookIcon } from "../components/SocialIcons";
 
+// A simple spinner component
+const Spinner = () => (
+  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+);
+
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false); // State to track submission
   const { login } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
 
   const from = location.state?.from?.pathname || "/dashboard";
@@ -17,12 +24,15 @@ const LoginPage = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsSubmitting(true); // Start loading
 
     try {
       const response = await apiClient.post("/auth/login", { email, password });
       await login(response.data.token, from);
     } catch (err: any) {
       setError(err.response?.data?.message || "Login failed.");
+    } finally {
+      setIsSubmitting(false); // Stop loading regardless of outcome
     }
   };
 
@@ -93,9 +103,10 @@ const LoginPage = () => {
         {error && <p className="text-red-400 text-center text-xs">{error}</p>}
         <button
           type="submit"
-          className="w-full px-4 py-2 mt-2 border-none rounded-lg bg-blue-600 text-white font-semibold cursor-pointer transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 text-sm"
+          disabled={isSubmitting}
+          className="w-full px-4 py-2 mt-2 border-none rounded-lg bg-blue-600 text-white font-semibold cursor-pointer transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 text-sm flex justify-center items-center disabled:bg-blue-400 disabled:cursor-not-allowed"
         >
-          Sign In
+          {isSubmitting ? <Spinner /> : "Sign In"}
         </button>
       </form>
 

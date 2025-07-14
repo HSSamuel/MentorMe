@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import apiClient from "../api/axios";
-import GoalModal from "./GoalModal"; // We will create this next
+import GoalModal from "./GoalModal";
+import toast from "react-hot-toast"; // Import the toast library
 
 const GoalManagement = ({ mentorshipId }: { mentorshipId: string }) => {
   const [goals, setGoals] = useState<any[]>([]);
@@ -82,7 +83,9 @@ const GoalManagement = ({ mentorshipId }: { mentorshipId: string }) => {
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-bold text-gray-700">Our Goals</h3>
+        <h3 className="text-xl font-bold text-gray-700 dark:text-gray-200">
+          Our Goals
+        </h3>
         <button
           onClick={() => {
             setEditingGoal(null);
@@ -98,7 +101,7 @@ const GoalManagement = ({ mentorshipId }: { mentorshipId: string }) => {
           goals.map((goal) => (
             <div
               key={goal.id}
-              className="p-4 bg-gray-50 rounded-lg flex items-center justify-between"
+              className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg flex items-center justify-between"
             >
               <div className="flex items-center">
                 <input
@@ -111,7 +114,7 @@ const GoalManagement = ({ mentorshipId }: { mentorshipId: string }) => {
                   className={`ml-4 ${
                     goal.isCompleted
                       ? "line-through text-gray-400"
-                      : "text-gray-800"
+                      : "text-gray-800 dark:text-gray-100"
                   }`}
                 >
                   {goal.title}
@@ -137,7 +140,7 @@ const GoalManagement = ({ mentorshipId }: { mentorshipId: string }) => {
             </div>
           ))
         ) : (
-          <p className="text-gray-500 text-center py-4">
+          <p className="text-gray-500 dark:text-gray-400 text-center py-4">
             No goals set yet. Add one to get started!
           </p>
         )}

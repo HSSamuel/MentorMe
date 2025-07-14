@@ -4,10 +4,59 @@ import apiClient from "../api/axios";
 import { io, Socket } from "socket.io-client";
 import { Link } from "react-router-dom";
 
+// --- Reusable SVG Icons for UI ---
+const SearchIcon = () => (
+  <svg
+    className="w-5 h-5 text-gray-400"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+    />
+  </svg>
+);
+
+const SendIcon = () => (
+  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+  </svg>
+);
+
+const ChatBubbleIcon = () => (
+  <svg
+    className="w-24 h-24 text-gray-300 dark:text-gray-600"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={1}
+      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+    />
+  </svg>
+);
+
+const BackIcon = () => (
+  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+    <path
+      fillRule="evenodd"
+      d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+      clipRule="evenodd"
+    />
+  </svg>
+);
+
+// --- Main Messages Page Component ---
 const MessagesPage = () => {
   const { user, token } = useAuth();
   const [conversations, setConversations] = useState<any[]>([]);
-  const [filteredConversations, setFilteredConversations] = useState<any[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -17,14 +66,29 @@ const MessagesPage = () => {
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
 
-  // --- Main Data Fetching Effect ---
+  // --- Utility function to get the other participant in a conversation ---
+  const getOtherParticipant = (conversation: any) => {
+    if (!conversation?.participants || !user) return null;
+    return conversation.participants.find((p: any) => p.id !== user.id);
+  };
+
+  // --- Fetching Initial Conversation Data ---
   useEffect(() => {
     const fetchConversations = async () => {
       setIsLoading(true);
       try {
         const res = await apiClient.get("/messages");
-        setConversations(res.data);
-        setFilteredConversations(res.data);
+        // Sort conversations by the last message date
+        const sortedConversations = res.data.sort((a: any, b: any) => {
+          const lastMessageA = new Date(
+            a.messages[0]?.createdAt || 0
+          ).getTime();
+          const lastMessageB = new Date(
+            b.messages[0]?.createdAt || 0
+          ).getTime();
+          return lastMessageB - lastMessageA;
+        });
+        setConversations(sortedConversations);
       } catch (error) {
         console.error("Failed to fetch conversations:", error);
       } finally {
@@ -34,82 +98,60 @@ const MessagesPage = () => {
     fetchConversations();
   }, []);
 
-  // --- Socket Connection and Listener Effect ---
+  // --- Socket.io Connection and Listeners ---
   useEffect(() => {
     if (!token) return;
 
-    // Connect to the socket server
     socketRef.current = io(import.meta.env.VITE_API_BASE_URL, {
       auth: { token },
     });
 
-    socketRef.current.on("connect", () => {
-      console.log("Connected to socket server with id:", socketRef.current?.id);
-    });
-
-    // Listen for incoming messages
     socketRef.current.on("receiveMessage", (message: any) => {
-      // Always update the conversation list to show the new latest message
-      setConversations((prevConvos) =>
-        prevConvos.map((c) =>
-          c.id === message.conversationId ? { ...c, messages: [message] } : c
-        )
-      );
+      // Update the message list if the conversation is currently open
+      if (message.conversationId === selectedConversation?.id) {
+        setMessages((prevMessages) => [...prevMessages, message]);
+      }
 
-      // Only update the active message window if the incoming message
-      // belongs to the currently selected conversation
-      setSelectedConversation((prevSelected) => {
-        if (prevSelected?.id === message.conversationId) {
-          setMessages((prevMessages) => [...prevMessages, message]);
+      // Update the conversation list to bring the updated one to the top
+      setConversations((prevConvos) => {
+        const updatedConvo = prevConvos.find(
+          (c) => c.id === message.conversationId
+        );
+        if (updatedConvo) {
+          const otherConvos = prevConvos.filter(
+            (c) => c.id !== message.conversationId
+          );
+          return [{ ...updatedConvo, messages: [message] }, ...otherConvos];
         }
-        return prevSelected;
+        return prevConvos; // Or fetch all convos again if a new one might have been created
       });
     });
 
-    // Clean up the connection when the component unmounts
     return () => {
       socketRef.current?.disconnect();
     };
-  }, [token]);
+  }, [token, selectedConversation?.id]);
 
-  // --- Effect for Filtering Conversations ---
-  useEffect(() => {
-    const result = conversations.filter((convo) => {
-      const otherParticipant = getOtherParticipant(convo);
-      // If there's no other participant, filter out this conversation.
-      if (!otherParticipant) {
-        return false;
-      }
-      // Now it's safe to access properties.
-      return (
-        (otherParticipant.profile?.name || "")
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
-        (otherParticipant.email || "")
-          .toLowerCase()
-          .includes(searchQuery.toLowerCase())
-      );
-    });
-    setFilteredConversations(result);
-  }, [searchQuery, conversations]);
-
-  // --- Effect to scroll to the bottom of the messages list ---
+  // --- Auto-scrolling for new messages ---
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // --- Handler for selecting a conversation ---
   const handleSelectConversation = async (conversation: any) => {
+    if (selectedConversation?.id === conversation.id) return;
     setSelectedConversation(conversation);
     try {
       const res = await apiClient.get(`/messages/${conversation.id}`);
       setMessages(res.data);
-      // Join the conversation room on the server
       socketRef.current?.emit("joinConversation", conversation.id);
     } catch (error) {
       console.error("Failed to fetch messages:", error);
+      setMessages([]);
     }
   };
 
+  // --- Handler for sending a message ---
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (
@@ -118,238 +160,227 @@ const MessagesPage = () => {
       socketRef.current &&
       user
     ) {
-      const tempMessage = {
-        id: `temp-${Date.now()}`, // Temporary ID for the key
-        content: newMessage,
-        senderId: user.id,
-        createdAt: new Date().toISOString(),
-        sender: {
-          id: user.id,
-          profile: {
-            name: user.profile?.name || "Me",
-          },
-        },
-      };
-
-      // Optimistically update the UI
-      setMessages((prevMessages) => [...prevMessages, tempMessage]);
-
-      // Emit the message to the server
       socketRef.current.emit("sendMessage", {
         conversationId: selectedConversation.id,
         content: newMessage,
       });
-
       setNewMessage("");
     }
   };
 
-  const getOtherParticipant = (conversation: any) => {
-    if (!conversation?.participants || !user) return null;
-    return conversation.participants.find((p: any) => p.id !== user.id);
-  };
-
-  const EmptyState = () => (
-    <div className="text-center py-16 px-6">
-      <div className="inline-block p-4 bg-indigo-100 dark:bg-indigo-900/50 rounded-full mb-4">
-        <svg
-          className="h-12 w-12 text-indigo-500 dark:text-indigo-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
-          />
-        </svg>
-      </div>
-      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
-        Your conversations live here
-      </h3>
-      {user?.role === "MENTEE" && (
-        <p className="text-gray-500 dark:text-gray-400 mt-2 mb-6">
-          Once a mentor accepts your request, you can start chatting with them.
-        </p>
-      )}
-      {user?.role === "MENTOR" && (
-        <p className="text-gray-500 dark:text-gray-400 mt-2 mb-6">
-          When you accept a mentorship request, your private chat with that
-          mentee will appear here.
-        </p>
-      )}
-      {user?.role === "MENTEE" && (
-        <Link
-          to="/mentors"
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-        >
-          Find a Mentor
-        </Link>
-      )}
-      {user?.role === "MENTOR" && (
-        <Link
-          to="/requests"
-          className="px-6 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-colors"
-        >
-          View Your Requests
-        </Link>
-      )}
-    </div>
-  );
+  const filteredConversations = conversations.filter((convo) => {
+    const otherParticipant = getOtherParticipant(convo);
+    return otherParticipant?.profile?.name
+      ?.toLowerCase()
+      .includes(searchQuery.toLowerCase());
+  });
 
   return (
-    <div className="p-4 sm:p-6 md:p-8">
-      <div className="w-full max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden h-[calc(100vh-10rem)] flex flex-col">
-        {isLoading ? (
-          <div className="flex-grow flex items-center justify-center">
-            <p className="text-gray-500 dark:text-gray-400">
-              Loading conversations...
-            </p>
-          </div>
-        ) : selectedConversation ? (
-          // View 2: Message Window
-          <>
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={() => setSelectedConversation(null)}
-                className="p-1 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
-                aria-label="Back to conversations"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-              <h3 className="font-bold text-lg text-gray-900 dark:text-white">
-                {getOtherParticipant(selectedConversation)?.profile?.name ||
-                  "User"}
-              </h3>
-            </div>
-            <div className="flex-grow p-4 overflow-y-auto">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex mb-4 ${
-                    msg.senderId === user?.id ? "justify-end" : "justify-start"
-                  }`}
-                >
-                  <div
-                    className={`rounded-lg px-4 py-2 max-w-lg shadow-sm ${
-                      msg.senderId === user?.id
-                        ? "bg-blue-600 text-white"
-                        : "bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100"
-                    }`}
-                  >
-                    <p>{msg.content}</p>
-                    <p className="text-xs opacity-75 mt-1 text-right">
-                      {new Date(msg.createdAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-            <div className="p-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
-              <form onSubmit={handleSendMessage} className="flex gap-4">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
-                  className="flex-grow px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-6 py-2 rounded-full font-semibold hover:bg-blue-700 transition-transform hover:scale-105"
-                >
-                  Send
-                </button>
-              </form>
-            </div>
-          </>
-        ) : (
-          // View 1: Conversation List
-          <>
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-              <h2 className="text-xl font-bold text-gray-800 dark:text-white">
-                Conversations
-              </h2>
+    <div className="max-w-7xl mx-auto h-[calc(100vh-8rem)] p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl h-full flex overflow-hidden relative">
+        {/* Left Column: Conversation List */}
+        <div
+          className={`w-full md:w-1/3 md:flex flex-col transition-transform duration-300 ease-in-out absolute md:static inset-0 ${
+            selectedConversation
+              ? "-translate-x-full md:translate-x-0"
+              : "translate-x-0"
+          }`}
+        >
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              Messages
+            </h2>
+            <div className="relative mt-4">
               <input
                 type="text"
-                placeholder="Search conversations..."
+                placeholder="Search chats..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full mt-4 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                className="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                <SearchIcon />
+              </div>
             </div>
-            <div className="flex-grow overflow-y-auto">
-              {conversations.length > 0 ? (
-                filteredConversations.map((convo) => {
-                  const otherParticipant = getOtherParticipant(convo);
-                  const lastMessage = convo.messages[0];
-                  const isUnread =
-                    lastMessage &&
-                    lastMessage.senderId !== user?.id &&
-                    !lastMessage.isRead;
-                  return (
-                    <div
-                      key={convo.id}
-                      onClick={() => handleSelectConversation(convo)}
-                      className="p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors duration-200 flex items-center gap-4 border-b border-gray-200 dark:border-gray-700"
-                    >
-                      <img
-                        className="h-12 w-12 rounded-full object-cover"
-                        src={
-                          otherParticipant.profile?.avatarUrl
-                            ? `${apiClient.defaults.baseURL}${otherParticipant.profile.avatarUrl}`.replace(
-                                "/api",
-                                ""
-                              )
-                            : `https://ui-avatars.com/api/?name=${
-                                otherParticipant.profile?.name ||
-                                otherParticipant.email
-                              }&background=random&color=fff`
-                        }
-                        alt="Avatar"
-                      />
-                      <div className="flex-grow">
-                        <p className="font-semibold text-gray-900 dark:text-gray-200">
-                          {otherParticipant?.profile?.name || "User"}
-                        </p>
-                        <p
-                          className={`text-sm truncate ${
-                            isUnread
-                              ? "text-gray-800 dark:text-white font-bold"
-                              : "text-gray-600 dark:text-gray-400"
-                          }`}
-                        >
-                          {lastMessage?.content || "No messages yet"}
-                        </p>
-                      </div>
-                      {isUnread && (
-                        <div className="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0"></div>
-                      )}
+          </div>
+          <div className="flex-grow overflow-y-auto">
+            {isLoading ? (
+              <p className="text-center p-4 text-gray-500">Loading...</p>
+            ) : (
+              filteredConversations.map((convo) => {
+                const otherParticipant = getOtherParticipant(convo);
+                if (!otherParticipant) return null; // Skip rendering if no other participant
+                return (
+                  <div
+                    key={convo.id}
+                    onClick={() => handleSelectConversation(convo)}
+                    className={`flex items-center p-3 cursor-pointer transition-colors border-l-4 ${
+                      selectedConversation?.id === convo.id
+                        ? "bg-blue-50 dark:bg-blue-900/50 border-blue-500"
+                        : "border-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                    }`}
+                  >
+                    <img
+                      className="h-12 w-12 rounded-full object-cover"
+                      src={
+                        otherParticipant.profile?.avatarUrl?.startsWith("http")
+                          ? otherParticipant.profile.avatarUrl
+                          : otherParticipant.profile?.avatarUrl
+                          ? `${apiClient.defaults.baseURL}${otherParticipant.profile.avatarUrl}`.replace(
+                              "/api",
+                              ""
+                            )
+                          : `https://ui-avatars.com/api/?name=${
+                              otherParticipant.profile?.name ||
+                              otherParticipant.email
+                            }&background=random&color=fff`
+                      }
+                      alt="Avatar"
+                    />
+                    <div className="flex-grow ml-4 min-w-0">
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">
+                        {otherParticipant.profile?.name}
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                        {convo.messages[0]?.content || "No messages yet"}
+                      </p>
                     </div>
-                  );
-                })
-              ) : (
-                <EmptyState />
-              )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        {/* Right Column: Chat Window */}
+        <div
+          className={`w-full md:w-2/3 flex flex-col absolute md:static top-0 right-0 h-full bg-white dark:bg-gray-800 transition-transform duration-300 ease-in-out ${
+            selectedConversation
+              ? "translate-x-0"
+              : "translate-x-full md:translate-x-0"
+          }`}
+        >
+          {selectedConversation ? (
+            <>
+              {/* Chat Header */}
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center flex-shrink-0">
+                <button
+                  onClick={() => setSelectedConversation(null)}
+                  className="p-1 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 md:hidden mr-2"
+                  aria-label="Back to conversations"
+                >
+                  <BackIcon />
+                </button>
+                <img
+                  className="h-10 w-10 rounded-full object-cover"
+                  src={
+                    getOtherParticipant(
+                      selectedConversation
+                    )?.profile?.avatarUrl?.startsWith("http")
+                      ? getOtherParticipant(selectedConversation).profile
+                          .avatarUrl
+                      : getOtherParticipant(selectedConversation)?.profile
+                          ?.avatarUrl
+                      ? `${apiClient.defaults.baseURL}${
+                          getOtherParticipant(selectedConversation).profile
+                            .avatarUrl
+                        }`.replace("/api", "")
+                      : `https://ui-avatars.com/api/?name=${
+                          getOtherParticipant(selectedConversation).profile
+                            ?.name ||
+                          getOtherParticipant(selectedConversation).email
+                        }&background=random&color=fff`
+                  }
+                  alt="Avatar"
+                />
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white ml-4">
+                  {getOtherParticipant(selectedConversation)?.profile?.name}
+                </h3>
+              </div>
+
+              {/* Messages Area */}
+              <div className="flex-grow p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+                <div className="space-y-6">
+                  {messages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex items-end gap-3 ${
+                        msg.senderId === user?.id
+                          ? "justify-end"
+                          : "justify-start"
+                      }`}
+                    >
+                      {msg.senderId !== user?.id && (
+                        <img
+                          src={
+                            getOtherParticipant(
+                              selectedConversation
+                            )?.profile?.avatarUrl?.startsWith("http")
+                              ? getOtherParticipant(selectedConversation)
+                                  .profile.avatarUrl
+                              : getOtherParticipant(selectedConversation)
+                                  ?.profile?.avatarUrl
+                              ? `${apiClient.defaults.baseURL}${
+                                  getOtherParticipant(selectedConversation)
+                                    .profile.avatarUrl
+                                }`.replace("/api", "")
+                              : `https://ui-avatars.com/api/?name=${
+                                  getOtherParticipant(selectedConversation)
+                                    .profile?.name ||
+                                  getOtherParticipant(selectedConversation)
+                                    .email
+                                }&background=random&color=fff`
+                          }
+                          alt="Sender"
+                          className="h-8 w-8 rounded-full object-cover"
+                        />
+                      )}
+                      <div
+                        className={`rounded-2xl px-4 py-2 max-w-lg ${
+                          msg.senderId === user?.id
+                            ? "bg-blue-600 text-white rounded-br-none"
+                            : "bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm rounded-bl-none"
+                        }`}
+                      >
+                        <p>{msg.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+              </div>
+
+              {/* Message Input */}
+              <div className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+                <form onSubmit={handleSendMessage} className="flex gap-4">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    placeholder="Type a message..."
+                    className="flex-grow px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="submit"
+                    className="bg-blue-600 text-white rounded-full p-3 hover:bg-blue-700 transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    aria-label="Send message"
+                  >
+                    <SendIcon />
+                  </button>
+                </form>
+              </div>
+            </>
+          ) : (
+            // Placeholder when no conversation is selected
+            <div className="hidden md:flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
+              <ChatBubbleIcon />
+              <h3 className="text-xl font-semibold mt-4">
+                Select a conversation
+              </h3>
+              <p>Choose from your existing conversations to start chatting.</p>
             </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

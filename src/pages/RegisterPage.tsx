@@ -4,6 +4,11 @@ import apiClient from "../api/axios";
 import { useAuth } from "../contexts/AuthContext";
 import { GoogleIcon, FacebookIcon } from "../components/SocialIcons";
 
+// A simple spinner component
+const Spinner = () => (
+  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+);
+
 const RegisterPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -11,6 +16,7 @@ const RegisterPage = () => {
   const [role, setRole] = useState<"MENTEE" | "MENTOR">("MENTEE");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false); // State to track submission
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
 
@@ -24,9 +30,11 @@ const RegisterPage = () => {
     e.preventDefault();
     setError("");
     setSuccess("");
+    setIsSubmitting(true); // Start loading
 
     if (password.length < 6) {
       setError("Password must be at least 6 characters long.");
+      setIsSubmitting(false); // Stop loading
       return;
     }
 
@@ -38,6 +46,8 @@ const RegisterPage = () => {
       }, 2000);
     } catch (err: any) {
       setError(err.response?.data?.message || "Registration failed.");
+    } finally {
+      setIsSubmitting(false); // Stop loading regardless of outcome
     }
   };
 
@@ -147,9 +157,10 @@ const RegisterPage = () => {
         )}
         <button
           type="submit"
-          className="w-full px-4 py-2 mt-2 border-none rounded-lg bg-green-600 text-white font-semibold cursor-pointer transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 text-sm"
+          disabled={isSubmitting} // Disable button when submitting
+          className="w-full px-4 py-2 mt-2 border-none rounded-lg bg-green-600 text-white font-semibold cursor-pointer transition-colors hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 text-sm flex justify-center items-center disabled:bg-green-400 disabled:cursor-not-allowed"
         >
-          Register with Email
+          {isSubmitting ? <Spinner /> : "Register"}
         </button>
       </form>
       <div className="text-center mt-3">

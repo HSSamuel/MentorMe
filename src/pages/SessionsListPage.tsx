@@ -95,16 +95,24 @@ const SessionsListPage = () => {
                 })}
               </p>
             </div>
-            <div className="mt-4 sm:mt-0">
+            <div className="mt-4 sm:mt-0 flex items-center gap-4">
               {activeTab === "past" && (
                 <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
                   Completed
                 </span>
               )}
               {activeTab === "upcoming" && (
-                <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200">
-                  Upcoming
-                </span>
+                <>
+                  <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200">
+                    Upcoming
+                  </span>
+                  <Link
+                    to={`/session/${session.id}/call`}
+                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+                  >
+                    Join Session
+                  </Link>
+                </>
               )}
             </div>
           </div>
@@ -131,7 +139,7 @@ const SessionsListPage = () => {
   };
 
   const EmptyState = ({ tab }: { tab: "upcoming" | "past" }) => (
-    <div className="text-center py-16 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
+    <div className="text-center py-16 px-6 bg-white/70 dark:bg-gray-800/50 backdrop-blur-sm rounded-lg shadow-md">
       <div className="inline-block p-4 bg-indigo-100 dark:bg-indigo-900/50 rounded-full mb-4">
         <svg
           className="h-12 w-12 text-indigo-500 dark:text-indigo-400"

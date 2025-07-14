@@ -1,12 +1,14 @@
-// src/components/GoalForm.tsx
-
 import React, { useState } from "react";
 import apiClient from "../api/axios";
-import { Goal } from "../pages/GoalsPage"; // Import the Goal type
+import { Goal } from "../pages/GoalsPage";
 
 interface GoalFormProps {
   onGoalCreated: (goal: Goal) => void;
 }
+
+const Spinner = () => (
+  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+);
 
 const GoalForm: React.FC<GoalFormProps> = ({ onGoalCreated }) => {
   const [title, setTitle] = useState("");
@@ -46,16 +48,18 @@ const GoalForm: React.FC<GoalFormProps> = ({ onGoalCreated }) => {
     }
   };
 
+  const formInputClass =
+    "mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-blue-500 focus:border-blue-500";
+  const formLabelClass =
+    "block text-sm font-medium text-gray-700 dark:text-gray-300";
+
   return (
     <form
       onSubmit={handleSubmit}
-      className="p-4 bg-white shadow-md rounded-lg space-y-4"
+      className="p-4 bg-white dark:bg-gray-800 shadow-md rounded-lg space-y-4"
     >
       <div>
-        <label
-          htmlFor="title"
-          className="block text-sm font-medium text-gray-700"
-        >
+        <label htmlFor="title" className={formLabelClass}>
           Goal Title
         </label>
         <input
@@ -64,14 +68,11 @@ const GoalForm: React.FC<GoalFormProps> = ({ onGoalCreated }) => {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
-          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+          className={formInputClass}
         />
       </div>
       <div>
-        <label
-          htmlFor="specific"
-          className="block text-sm font-medium text-gray-700"
-        >
+        <label htmlFor="specific" className={formLabelClass}>
           Specific
         </label>
         <textarea
@@ -80,15 +81,12 @@ const GoalForm: React.FC<GoalFormProps> = ({ onGoalCreated }) => {
           onChange={(e) => setSpecific(e.target.value)}
           required
           rows={2}
-          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+          className={formInputClass}
           placeholder="What exactly do I want to accomplish?"
         />
       </div>
       <div>
-        <label
-          htmlFor="measurable"
-          className="block text-sm font-medium text-gray-700"
-        >
+        <label htmlFor="measurable" className={formLabelClass}>
           Measurable
         </label>
         <textarea
@@ -97,15 +95,12 @@ const GoalForm: React.FC<GoalFormProps> = ({ onGoalCreated }) => {
           onChange={(e) => setMeasurable(e.target.value)}
           required
           rows={2}
-          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+          className={formInputClass}
           placeholder="How will I track my progress?"
         />
       </div>
       <div>
-        <label
-          htmlFor="achievable"
-          className="block text-sm font-medium text-gray-700"
-        >
+        <label htmlFor="achievable" className={formLabelClass}>
           Achievable
         </label>
         <textarea
@@ -114,15 +109,12 @@ const GoalForm: React.FC<GoalFormProps> = ({ onGoalCreated }) => {
           onChange={(e) => setAchievable(e.target.value)}
           required
           rows={2}
-          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+          className={formInputClass}
           placeholder="Is this goal realistic?"
         />
       </div>
       <div>
-        <label
-          htmlFor="relevant"
-          className="block text-sm font-medium text-gray-700"
-        >
+        <label htmlFor="relevant" className={formLabelClass}>
           Relevant
         </label>
         <textarea
@@ -131,15 +123,12 @@ const GoalForm: React.FC<GoalFormProps> = ({ onGoalCreated }) => {
           onChange={(e) => setRelevant(e.target.value)}
           required
           rows={2}
-          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+          className={formInputClass}
           placeholder="Why is this goal important to me?"
         />
       </div>
       <div>
-        <label
-          htmlFor="timeBound"
-          className="block text-sm font-medium text-gray-700"
-        >
+        <label htmlFor="timeBound" className={formLabelClass}>
           Time-bound
         </label>
         <textarea
@@ -148,16 +137,16 @@ const GoalForm: React.FC<GoalFormProps> = ({ onGoalCreated }) => {
           onChange={(e) => setTimeBound(e.target.value)}
           required
           rows={2}
-          className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+          className={formInputClass}
           placeholder="What is the deadline?"
         />
       </div>
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-500 disabled:cursor-not-allowed flex justify-center items-center"
       >
-        {isSubmitting ? "Saving..." : "Set Goal"}
+        {isSubmitting ? <Spinner /> : "Set Goal"}
       </button>
     </form>
   );
