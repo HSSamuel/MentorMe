@@ -2,6 +2,12 @@ import React, { useState, useEffect } from "react";
 import apiClient from "../api/axios";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import toast from "react-hot-toast"; // Import toast for better user feedback
+
+// A simple spinner component for the buttons
+const Spinner = () => (
+  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+);
 
 const StatusBadge = ({ status }: { status: string }) => {
   const baseClasses = "px-3 py-1 text-xs font-medium rounded-full";
@@ -34,6 +40,9 @@ const MentorRequestsPage = () => {
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [updatingRequestId, setUpdatingRequestId] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     const fetchPageData = async () => {
@@ -57,23 +66,36 @@ const MentorRequestsPage = () => {
     fetchPageData();
   }, [user]);
 
+  // FIX: Replaced the update logic with toast.promise for a better user experience.
+  // This provides non-blocking feedback for loading, success, and error states.
   const handleUpdateRequest = async (
     requestId: string,
     status: "ACCEPTED" | "REJECTED"
   ) => {
-    try {
-      const response = await apiClient.put(`/requests/${requestId}`, {
-        status,
-      });
-      setRequests((prevRequests) =>
-        prevRequests.map((req) =>
-          req.id === requestId ? { ...req, status: response.data.status } : req
-        )
-      );
-    } catch (err) {
-      alert(`Failed to ${status.toLowerCase()} request.`);
-      console.error(err);
-    }
+    setUpdatingRequestId(requestId);
+    const promise = apiClient.put(`/requests/${requestId}`, { status });
+
+    toast.promise(promise, {
+      loading: "Updating request...",
+      success: (response) => {
+        setRequests((prevRequests) =>
+          prevRequests.map((req) =>
+            req.id === requestId
+              ? { ...req, status: response.data.status }
+              : req
+          )
+        );
+        setUpdatingRequestId(null);
+        return `Request has been ${status.toLowerCase()}.`;
+      },
+      error: (err) => {
+        setUpdatingRequestId(null);
+        return (
+          err.response?.data?.message ||
+          `Failed to ${status.toLowerCase()} request.`
+        );
+      },
+    });
   };
 
   const getAvatarUrl = (profile: any) => {
@@ -109,11 +131,11 @@ const MentorRequestsPage = () => {
             {requests.map((req) => (
               <div
                 key={req.id}
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
+                // FIX: Enhanced card styling for better depth and a subtle hover effect.
+                className="bg-white dark:bg-gray-800/50 dark:border dark:border-gray-700/50 rounded-xl shadow-lg overflow-hidden transition-shadow hover:shadow-xl"
               >
                 <div className="p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                    {/* Updated section with avatar */}
                     <div className="flex items-center mb-4 sm:mb-0">
                       <img
                         src={getAvatarUrl(req.mentee.profile)}
@@ -146,17 +168,20 @@ const MentorRequestsPage = () => {
 
                 {req.status === "PENDING" && (
                   <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 sm:px-6 grid grid-cols-2 sm:flex sm:justify-end gap-3">
+                    {/* FIX: Updated button styles for clear, functional colors and better interactivity. */}
                     <button
                       onClick={() => handleUpdateRequest(req.id, "REJECTED")}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      disabled={updatingRequestId === req.id}
+                      className="px-4 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-lg hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Reject
+                      {updatingRequestId === req.id ? <Spinner /> : "Reject"}
                     </button>
                     <button
                       onClick={() => handleUpdateRequest(req.id, "ACCEPTED")}
-                      className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+                      disabled={updatingRequestId === req.id}
+                      className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors flex justify-center items-center w-24 disabled:bg-green-400 disabled:cursor-not-allowed"
                     >
-                      Accept
+                      {updatingRequestId === req.id ? <Spinner /> : "Accept"}
                     </button>
                   </div>
                 )}

@@ -1,26 +1,33 @@
 import React, { useState } from "react";
 import apiClient from "../api/axios";
 import { Goal } from "../pages/GoalsPage";
+import toast from "react-hot-toast";
 
 interface GoalFormProps {
   onGoalCreated: (goal: Goal) => void;
+  mentorships: any[];
 }
 
 const Spinner = () => (
   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
 );
 
-const GoalForm: React.FC<GoalFormProps> = ({ onGoalCreated }) => {
+const GoalForm: React.FC<GoalFormProps> = ({ onGoalCreated, mentorships }) => {
   const [title, setTitle] = useState("");
   const [specific, setSpecific] = useState("");
   const [measurable, setMeasurable] = useState("");
   const [achievable, setAchievable] = useState("");
   const [relevant, setRelevant] = useState("");
   const [timeBound, setTimeBound] = useState("");
+  const [selectedMentorship, setSelectedMentorship] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedMentorship) {
+      toast.error("Please select a mentorship to associate this goal with.");
+      return;
+    }
     setIsSubmitting(true);
     try {
       const response = await apiClient.post("/goals", {
@@ -30,9 +37,11 @@ const GoalForm: React.FC<GoalFormProps> = ({ onGoalCreated }) => {
         achievable,
         relevant,
         timeBound,
-        category: "Skill Development", // Example category
+        mentorshipRequestId: selectedMentorship,
+        category: "Skill Development",
       });
       onGoalCreated(response.data);
+      toast.success("Goal created successfully!");
       // Reset form
       setTitle("");
       setSpecific("");
@@ -40,9 +49,18 @@ const GoalForm: React.FC<GoalFormProps> = ({ onGoalCreated }) => {
       setAchievable("");
       setRelevant("");
       setTimeBound("");
-    } catch (error) {
-      console.error("Failed to create goal:", error);
-      alert("Could not create goal. Please try again.");
+      setSelectedMentorship("");
+    } catch (error: any) {
+      // --- FIX: Log the detailed error from the server ---
+      console.error(
+        "Failed to create goal:",
+        error.response?.data || error.message
+      );
+      // Display the specific validation error message from the backend
+      const errorMessage =
+        error.response?.data?.errors?.[0]?.msg ||
+        "Could not create goal. Please try again.";
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -58,6 +76,28 @@ const GoalForm: React.FC<GoalFormProps> = ({ onGoalCreated }) => {
       onSubmit={handleSubmit}
       className="p-4 bg-white dark:bg-gray-800 shadow-md rounded-lg space-y-4"
     >
+      <div>
+        <label htmlFor="mentorship" className={formLabelClass}>
+          Associate with Mentor
+        </label>
+        <select
+          id="mentorship"
+          value={selectedMentorship}
+          onChange={(e) => setSelectedMentorship(e.target.value)}
+          required
+          className={formInputClass}
+        >
+          <option value="" disabled>
+            -- Select a Mentor --
+          </option>
+          {mentorships.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.mentor.profile.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div>
         <label htmlFor="title" className={formLabelClass}>
           Goal Title

@@ -9,8 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fullcalendar/moment": "^6.1.18",
     "axios": "^1.7.2",
     "date-fns": "^3.6.0",
+    "moment": "^2.30.1",
     "react": "^18.3.1",
     "react-big-calendar": "^1.14.0",
     "react-dom": "^18.3.1",

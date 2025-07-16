@@ -2,9 +2,11 @@ import React, { useEffect, useState } from "react";
 import apiClient from "../api/axios";
 import MentorCard from "../components/MentorCard";
 import FilterSidebar from "../components/FilterSidebar";
+// [Add] Import formatLastSeen, though not directly used here, it's good practice if you want to display it
+// import { formatLastSeen } from "../utils/timeFormat";
 
 const MentorListPage = () => {
-  const [mentors, setMentors] = useState([]);
+  const [mentors, setMentors] = useState<any[]>([]); // [Modify] Changed type to any[] to accommodate lastSeen
   const [allSkills, setAllSkills] = useState([]);
   const [filteredMentors, setFilteredMentors] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,19 +26,17 @@ const MentorListPage = () => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // --- FIX: Added 'requestsRes' to the destructuring array ---
         const [mentorsRes, skillsRes, requestsRes] = await Promise.all([
           apiClient.get(`/users/mentors?page=${currentPage}&limit=9`),
           apiClient.get("/users/skills"),
           apiClient.get("/requests/sent"),
         ]);
 
-        setMentors(mentorsRes.data.mentors);
+        setMentors(mentorsRes.data.mentors); // This data will now include `lastSeen` from backend
         setFilteredMentors(mentorsRes.data.mentors);
         setTotalPages(mentorsRes.data.totalPages);
         setAllSkills(skillsRes.data);
 
-        // This will now work correctly
         const requestedIds = new Set(
           requestsRes.data.map((req: any) => req.mentorId)
         );
@@ -107,7 +107,7 @@ const MentorListPage = () => {
               {filteredMentors.map((mentor: any) => (
                 <MentorCard
                   key={mentor.id}
-                  mentor={mentor}
+                  mentor={mentor} // [Modify] mentor object now includes lastSeen
                   isAlreadyRequested={requestedMentorIds.has(mentor.id)}
                 />
               ))}

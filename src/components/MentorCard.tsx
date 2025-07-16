@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import apiClient from "../api/axios";
+import { Link } from "react-router-dom";
+import { formatLastSeen } from "../utils/timeFormat"; // [Add] Import the helper
 
-// A simple spinner component
+// A simple spinner component (kept for reference, though button moved)
 const Spinner = () => (
   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
 );
@@ -16,36 +18,14 @@ interface MentorCardProps {
       goals: string;
       avatarUrl?: string;
     };
+    lastSeen?: string; // [Modify] Add lastSeen to mentor prop
   };
-  isAlreadyRequested: boolean;
+  // isAlreadyRequested: boolean; // [Remove] This prop is no longer needed here
 }
 
-const MentorCard = ({ mentor, isAlreadyRequested }: MentorCardProps) => {
-  const [isRequested, setIsRequested] = useState(isAlreadyRequested);
-  const [isLoading, setIsLoading] = useState(false); // State to handle loading
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    setIsRequested(isAlreadyRequested);
-  }, [isAlreadyRequested]);
-
-  const handleRequestMentorship = async () => {
-    setError("");
-    setIsLoading(true); // Start loading
-    try {
-      await apiClient.post("/requests", { mentorId: mentor.id });
-      setIsRequested(true);
-    } catch (err: any) {
-      const errorMessage =
-        err.response?.status === 409
-          ? "You have already sent a request to this mentor."
-          : "Failed to send request. Please try again.";
-      setError(errorMessage);
-      console.error(err);
-    } finally {
-      setIsLoading(false); // Stop loading
-    }
-  };
+const MentorCard = ({ mentor }: MentorCardProps) => {
+  // [Modify] Removed isAlreadyRequested from props
+  // Removed isRequested, isLoading, error states and handleRequestMentorship function as button logic moved
 
   const getAvatarUrl = () => {
     const { profile } = mentor;
@@ -63,7 +43,11 @@ const MentorCard = ({ mentor, isAlreadyRequested }: MentorCardProps) => {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl flex flex-col h-full">
+    // [Modify] Wrap the entire card in a Link component for navigation
+    <Link
+      to={`/mentor/${mentor.id}`} // Navigate to the mentor's profile page
+      className="block bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-transform transform hover:-translate-y-1 hover:shadow-2xl flex flex-col h-full cursor-pointer"
+    >
       <div className="p-6 flex-grow">
         <div className="flex items-center mb-4">
           <img
@@ -75,6 +59,11 @@ const MentorCard = ({ mentor, isAlreadyRequested }: MentorCardProps) => {
             <h3 className="text-xl font-bold text-gray-900 dark:text-white">
               {mentor.profile.name}
             </h3>
+            {mentor.lastSeen && ( // [Add] Display lastSeen if available
+              <p className="text-gray-500 dark:text-gray-400 text-xs">
+                {formatLastSeen(mentor.lastSeen)}
+              </p>
+            )}
           </div>
         </div>
 
@@ -99,31 +88,8 @@ const MentorCard = ({ mentor, isAlreadyRequested }: MentorCardProps) => {
         </div>
       </div>
 
-      <div className="p-6 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700">
-        <button
-          onClick={handleRequestMentorship}
-          disabled={isRequested || isLoading} // Disable button if already requested or while loading
-          className={`w-full px-4 py-2 rounded-lg font-semibold text-white transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 flex justify-center items-center ${
-            isRequested
-              ? "bg-green-500 cursor-not-allowed"
-              : isLoading
-              ? "bg-blue-400 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
-          }`}
-        >
-          {isLoading ? (
-            <Spinner />
-          ) : isRequested ? (
-            "Request Sent ✓"
-          ) : (
-            "Request Mentorship"
-          )}
-        </button>
-        {error && (
-          <p className="text-red-500 text-xs text-center mt-2">{error}</p>
-        )}
-      </div>
-    </div>
+      {/* [Remove] The button container section is removed from here */}
+    </Link>
   );
 };
 

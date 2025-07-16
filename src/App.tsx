@@ -25,7 +25,8 @@ const AdminMatchesPage = React.lazy(() => import("./pages/AdminMatchesPage"));
 const AdminSessionsPage = React.lazy(() => import("./pages/AdminSessionsPage"));
 const DashboardPage = React.lazy(() => import("./pages/DashboardPage"));
 const MessagesPage = React.lazy(() => import("./pages/MessagesPage"));
-const MentorProfilePage = React.lazy(() => import("./pages/MentorProfilePage"));
+// [MODIFIED]: Renamed import from MentorProfilePage to UserProfilePage
+const UserProfilePage = React.lazy(() => import("./pages/MentorProfilePage"));
 const AuthCallbackPage = React.lazy(() => import("./pages/AuthCallbackPage"));
 const ForgotPasswordPage = React.lazy(
   () => import("./pages/ForgotPasswordPage")
@@ -51,9 +52,19 @@ function App() {
 
           {/* Main Application Routes */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/mentor/:id" element={<MentorProfilePage />} />
+          {/* [MODIFIED]: Route for generic user profile page */}
+          <Route path="/users/:id" element={<UserProfilePage />} />
 
           {/* Protected Routes */}
+          {/* FIX: Add the new route for the mentor profile page to match the URL */}
+          <Route
+            path="/mentor/:id"
+            element={
+              <ProtectedRoute>
+                <UserProfilePage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/profile/edit"
             element={
@@ -134,7 +145,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* ADDED: Route for the video call page */}
           <Route
             path="/session/:sessionId/call"
             element={

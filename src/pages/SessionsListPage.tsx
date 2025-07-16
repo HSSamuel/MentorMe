@@ -78,10 +78,7 @@ const SessionsListPage = () => {
     }
 
     return (
-      <div
-        key={session.id}
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden"
-      >
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
         <div className="p-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
             <div>
@@ -245,13 +242,17 @@ const SessionsListPage = () => {
         <div className="space-y-6">
           {activeTab === "upcoming" &&
             (upcomingSessions.length > 0 ? (
-              upcomingSessions.map(renderSessionCard)
+              upcomingSessions.map((session) => (
+                <div key={session.id}>{renderSessionCard(session)}</div>
+              ))
             ) : (
               <EmptyState tab="upcoming" />
             ))}
           {activeTab === "past" &&
             (pastSessions.length > 0 ? (
-              pastSessions.map(renderSessionCard)
+              pastSessions.map((session) => (
+                <div key={session.id}>{renderSessionCard(session)}</div>
+              ))
             ) : (
               <EmptyState tab="past" />
             ))}
