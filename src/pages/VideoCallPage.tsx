@@ -5,8 +5,10 @@ import { useAuth } from "../contexts/AuthContext";
 
 const VideoCallPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const navigate = useNavigate();
+
+  // Refs
   const socketRef = useRef<Socket | null>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -15,20 +17,89 @@ const VideoCallPage = () => {
   // State Management
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const [incomingCall, setIncomingCall] = useState<{
-    menteeSocketId: string;
-  } | null>(null);
-  const [receivedOffer, setReceivedOffer] = useState<{
-    from: string;
-    offer: any;
-  } | null>(null);
-  const [isCallActive, setIsCallActive] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  // Function to start the camera and join the call
+  const startCall = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+      setLocalStream(stream);
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      const socket = io(import.meta.env.VITE_API_BASE_URL, { auth: { token } });
+      socketRef.current = socket;
+      socket.emit("join-room", sessionId);
+      setIsConnecting(true); // Show connecting status
+
+      // --- Setup all socket listeners once ---
+      setupSocketListeners(socket, stream);
+    } catch (error) {
+      console.error("Error starting call.", error);
+    }
+  };
+
+  // Function to set up all socket event listeners
+  const setupSocketListeners = (socket: Socket, stream: MediaStream) => {
+    // This is the trigger to start the WebRTC handshake
+    socket.on("other-user-ready", (data: { otherUserId: string }) => {
+      const pc = createPeerConnection(data.otherUserId, stream);
+
+      // The user with the smaller socket ID makes the offer to avoid conflicts
+      if (socket.id < data.otherUserId) {
+        pc.createOffer()
+          .then((offer) => pc.setLocalDescription(offer))
+          .then(() => {
+            socket.emit("offer", {
+              target: data.otherUserId,
+              offer: pc.localDescription,
+            });
+          });
+      }
+    });
+
+    socket.on("offer", async (payload: { from: string; offer: any }) => {
+      const pc = createPeerConnection(payload.from, stream);
+      await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit("answer", {
+        target: payload.from,
+        answer: pc.localDescription,
+      });
+    });
+
+    socket.on("answer", (payload: { from: string; answer: any }) => {
+      peerConnectionRef.current?.setRemoteDescription(
+        new RTCSessionDescription(payload.answer)
+      );
+    });
+
+    socket.on("ice-candidate", (payload: { from: string; candidate: any }) => {
+      peerConnectionRef.current?.addIceCandidate(
+        new RTCIceCandidate(payload.candidate)
+      );
+    });
+
+    socket.on("user-left", () => {
+      handleEndCall();
+    });
+  };
 
   // Helper to create and configure a peer connection
   const createPeerConnection = (
     otherUserSocketId: string,
     stream: MediaStream
   ) => {
+    // Close any existing connection before creating a new one
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+    }
+
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
@@ -42,128 +113,36 @@ const VideoCallPage = () => {
       }
     };
 
-    pc.ontrack = (event) => setRemoteStream(event.streams[0]);
+    pc.ontrack = (event) => {
+      setRemoteStream(event.streams[0]);
+      setIsConnecting(false); // Connection is established, hide "Connecting..."
+    };
+
     stream.getTracks().forEach((track) => pc.addTrack(track, stream));
     peerConnectionRef.current = pc;
     return pc;
   };
 
-  // Effect to set up socket listeners
-  useEffect(() => {
-    if (!token) return;
-    const socket = io(import.meta.env.VITE_API_BASE_URL, { auth: { token } });
-    socketRef.current = socket;
-
-    socket.emit("join-room", sessionId);
-
-    // MENTOR listens for a call
-    socket.on(
-      "incoming-call",
-      (data) => user?.role === "MENTOR" && setIncomingCall(data)
-    );
-
-    // MENTEE listens for call acceptance
-    socket.on("mentor-joined", (data) => {
-      if (user?.role === "MENTEE" && localStream) {
-        const pc = createPeerConnection(data.mentorSocketId, localStream);
-        pc.createOffer()
-          .then((offer) => pc.setLocalDescription(offer))
-          .then(() => {
-            socket.emit("offer", {
-              target: data.mentorSocketId,
-              offer: pc.localDescription,
-            });
-          });
-      }
-    });
-
-    // MENTOR stores the offer until they are ready
-    socket.on(
-      "offer",
-      (payload) => user?.role === "MENTOR" && setReceivedOffer(payload)
-    );
-
-    // MENTEE handles the answer
-    socket.on("answer", (payload) =>
-      peerConnectionRef.current?.setRemoteDescription(
-        new RTCSessionDescription(payload.answer)
-      )
-    );
-
-    socket.on("ice-candidate", (payload) =>
-      peerConnectionRef.current?.addIceCandidate(
-        new RTCIceCandidate(payload.candidate)
-      )
-    );
-
-    socket.on("user-left", () => handleEndCall());
-
-    return () => {
-      socket.disconnect();
-      peerConnectionRef.current?.close();
-    };
-  }, [token, sessionId, user?.role, localStream]);
-
-  // Effect for MENTOR to act on the offer AFTER starting their camera
-  useEffect(() => {
-    if (user?.role === "MENTOR" && receivedOffer && localStream) {
-      const pc = createPeerConnection(receivedOffer.from, localStream);
-      pc.setRemoteDescription(new RTCSessionDescription(receivedOffer.offer))
-        .then(() => pc.createAnswer())
-        .then((answer) => pc.setLocalDescription(answer))
-        .then(() => {
-          socketRef.current?.emit("answer", {
-            target: receivedOffer.from,
-            answer: pc.localDescription,
-          });
-        });
-      setIsCallActive(true);
-      setIncomingCall(null);
-    }
-  }, [receivedOffer, localStream, user?.role]);
-
-  // Assign streams to video elements
-  useEffect(() => {
-    if (localVideoRef.current && localStream)
-      localVideoRef.current.srcObject = localStream;
-    if (remoteVideoRef.current && remoteStream)
-      remoteVideoRef.current.srcObject = remoteStream;
-  }, [localStream, remoteStream]);
-
-  // User Actions
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-      setLocalStream(stream);
-    } catch (error) {
-      console.error("Error accessing media devices.", error);
-    }
-  };
-
-  const handleCallMentor = () => {
-    startCamera().then(() => {
-      socketRef.current?.emit("mentee-ready", { roomId: sessionId });
-      setIsCallActive(true);
-    });
-  };
-
-  const handleAcceptCall = () => startCamera(); // This triggers the useEffect above
-
   const handleEndCall = () => {
     localStream?.getTracks().forEach((track) => track.stop());
+    peerConnectionRef.current?.close();
     socketRef.current?.disconnect();
     navigate("/my-sessions");
   };
+
+  // Effect to assign the remote stream to the video element
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
 
   // --- RENDER LOGIC ---
   return (
     <div className="p-4 bg-gray-900 text-white min-h-screen flex flex-col">
       <h1 className="text-2xl font-bold text-center mb-4">Video Session</h1>
       <div className="flex-1 relative bg-black rounded-lg flex items-center justify-center">
-        {/* Remote Video */}
+        {/* Remote Video Display */}
         <video
           ref={remoteVideoRef}
           autoPlay
@@ -173,36 +152,30 @@ const VideoCallPage = () => {
           }`}
         />
 
-        {/* --- UI States --- */}
-        {user?.role === "MENTOR" && incomingCall && !isCallActive && (
-          <div className="text-center">
-            <p className="text-xl mb-4">Incoming call from Mentee...</p>
-            <button
-              onClick={handleAcceptCall}
-              className="px-6 py-3 text-white bg-green-600 rounded-lg hover:bg-green-700"
-            >
-              Accept
-            </button>
-          </div>
-        )}
-        {user?.role === "MENTEE" && !localStream && (
+        {/* UI States */}
+        {!localStream && (
           <button
-            onClick={handleCallMentor}
-            className="px-6 py-3 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            onClick={startCall}
+            className="px-6 py-3 text-white bg-blue-600 rounded-lg hover:bg-blue-700 z-10"
           >
-            Call Mentor
+            Start Call
           </button>
         )}
-        {!remoteStream && isCallActive && (
-          <p className="text-xl">Connecting...</p>
+
+        {isConnecting && !remoteStream && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+            <p className="text-xl mt-4">Connecting...</p>
+          </div>
         )}
-        {user?.role === "MENTOR" && !remoteStream && !incomingCall && (
-          <p className="text-xl">Waiting for mentee to call...</p>
+
+        {!remoteStream && localStream && !isConnecting && (
+          <p className="text-xl">Waiting for other user to join...</p>
         )}
 
         {/* Local Video (Picture-in-Picture) */}
         {localStream && (
-          <div className="absolute bottom-4 right-4 w-48 h-36 border-2 border-gray-600 rounded-lg overflow-hidden">
+          <div className="absolute bottom-4 right-4 w-48 h-36 border-2 border-gray-600 rounded-lg overflow-hidden z-10">
             <video
               ref={localVideoRef}
               autoPlay
@@ -215,7 +188,7 @@ const VideoCallPage = () => {
       </div>
 
       {/* Controls */}
-      {isCallActive && (
+      {localStream && (
         <div className="flex justify-center gap-4 mt-4">
           <button
             onClick={handleEndCall}
