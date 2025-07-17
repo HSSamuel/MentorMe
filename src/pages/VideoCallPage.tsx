@@ -26,31 +26,19 @@ const VideoCallPage = () => {
 
           socketRef.current?.emit("join-room", sessionId);
 
-          socketRef.current?.on("user-joined", (socketId: string) => {
-            const pc = createPeerConnection(socketId, stream);
-            peerConnections.current[socketId] = pc;
-            pc.createOffer()
-              .then((offer) => pc.setLocalDescription(offer))
-              .then(() => {
-                socketRef.current?.emit("offer", {
-                  target: socketId,
-                  offer: pc.localDescription,
-                });
-              });
-          });
-
           socketRef.current?.on(
             "offer",
-            async (payload: { socketId: string; offer: any }) => {
-              const pc = createPeerConnection(payload.socketId, stream);
-              peerConnections.current[payload.socketId] = pc;
+            async (payload: { from: string; offer: any }) => {
+              // Changed from socketId
+              const pc = createPeerConnection(payload.from, stream); // Changed from socketId
+              peerConnections.current[payload.from] = pc; // Changed from socketId
               await pc.setRemoteDescription(
                 new RTCSessionDescription(payload.offer)
               );
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
               socketRef.current?.emit("answer", {
-                target: payload.socketId,
+                target: payload.from, // Changed from socketId
                 answer,
               });
             }
@@ -58,8 +46,10 @@ const VideoCallPage = () => {
 
           socketRef.current?.on(
             "answer",
-            (payload: { socketId: string; answer: any }) => {
-              peerConnections.current[payload.socketId]?.setRemoteDescription(
+            (payload: { from: string; answer: any }) => {
+              // Changed from socketId
+              peerConnections.current[payload.from]?.setRemoteDescription(
+                // Changed from socketId
                 new RTCSessionDescription(payload.answer)
               );
             }
@@ -67,8 +57,10 @@ const VideoCallPage = () => {
 
           socketRef.current?.on(
             "ice-candidate",
-            (payload: { socketId: string; candidate: any }) => {
-              peerConnections.current[payload.socketId]?.addIceCandidate(
+            (payload: { from: string; candidate: any }) => {
+              // Changed from socketId
+              peerConnections.current[payload.from]?.addIceCandidate(
+                // Changed from socketId
                 new RTCIceCandidate(payload.candidate)
               );
             }
