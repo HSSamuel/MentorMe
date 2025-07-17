@@ -12,14 +12,12 @@ const MyMentorsPage = () => {
     const fetchMatches = async () => {
       setIsLoading(true);
       try {
-        // FIX: Use the correct endpoint and filter for accepted requests
         const response = await apiClient.get("/requests/sent");
         const acceptedMatches = response.data.filter(
           (req: any) => req.status === "ACCEPTED"
         );
         setMatches(acceptedMatches);
 
-        // Automatically select the first mentor if the list is not empty
         if (acceptedMatches.length > 0) {
           setSelectedMatch(acceptedMatches[0]);
         }
@@ -37,30 +35,30 @@ const MyMentorsPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
+      <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-8">
         My Mentors
       </h1>
       {matches.length > 0 ? (
         <div className="flex flex-col md:flex-row gap-8">
           {/* Mentor List Sidebar */}
           <aside className="w-full md:w-1/3 lg:w-1/4">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
               <ul className="divide-y divide-gray-200 dark:divide-gray-700">
                 {matches.map((match) => (
                   <li key={match.id}>
                     <button
                       onClick={() => setSelectedMatch(match)}
-                      className={`w-full text-left p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                      className={`w-full text-left p-4 transition-all duration-200 ${
                         selectedMatch?.id === match.id
-                          ? "bg-blue-50 dark:bg-blue-900/50"
-                          : ""
+                          ? "bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/50 dark:to-blue-900/50"
+                          : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
                       }`}
                     >
                       <p
                         className={`font-semibold ${
                           selectedMatch?.id === match.id
-                            ? "text-blue-600 dark:text-blue-400"
-                            : "text-gray-800 dark:text-gray-100"
+                            ? "text-purple-700 dark:text-purple-300"
+                            : "text-gray-800 dark:text-gray-200"
                         }`}
                       >
                         {match.mentor.profile.name}
@@ -79,20 +77,22 @@ const MyMentorsPage = () => {
           {/* Selected Mentor Details */}
           <main className="flex-1">
             {selectedMatch ? (
-              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
-                <div className="flex justify-between items-center pb-4 border-b border-gray-200 dark:border-gray-700 mb-4">
-                  <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+              <div className="rounded-xl shadow-2xl p-6 bg-gradient-to-br from-purple-100 via-blue-100 to-cyan-100 dark:from-purple-900/70 dark:via-blue-900/70 dark:to-cyan-900/70">
+                <div className="flex justify-between items-center pb-4 border-b border-gray-300 dark:border-gray-600 mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
                     {selectedMatch.mentor.profile.name}
                   </h2>
                   <Link
                     to={`/book-session/${selectedMatch.mentor.id}`}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-md hover:from-blue-600 hover:to-purple-700 transition-all duration-300"
                   >
                     Book a Session
                   </Link>
                 </div>
-                {/* Goal Management Component will go here */}
-                <GoalManagement mentorshipId={selectedMatch.id} />
+                {/* Goal Management Component will now have a styled container */}
+                <div className="bg-white/50 dark:bg-gray-800/50 p-6 rounded-lg">
+                  <GoalManagement mentorshipId={selectedMatch.id} />
+                </div>
               </div>
             ) : (
               <p className="text-center text-gray-500 dark:text-gray-400">

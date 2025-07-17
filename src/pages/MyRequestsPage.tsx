@@ -54,19 +54,19 @@ const MyRequestsPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">
         My Sent Requests
       </h1>
       {requests.length > 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
-          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
+        <div className="bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 dark:from-red-900/50 dark:via-orange-900/50 dark:to-yellow-900/50 rounded-xl shadow-2xl p-4">
+          <ul className="space-y-4">
             {requests.map((req) => (
               <li
                 key={req.id}
-                className="p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between"
+                className="p-6 bg-white/70 dark:bg-gray-800/70 rounded-lg shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
               >
                 <div className="mb-4 sm:mb-0">
-                  <p className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
                     Mentor: {req.mentor.profile.name}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -78,7 +78,7 @@ const MyRequestsPage = () => {
                   {req.status === "ACCEPTED" && (
                     <Link
                       to={`/book-session/${req.mentorId}`}
-                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                      className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-red-600 rounded-lg shadow-md hover:from-orange-600 hover:to-red-700 transition-all duration-300"
                     >
                       Book Session
                     </Link>

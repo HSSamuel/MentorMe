@@ -185,26 +185,31 @@ const DashboardPage = () => {
     isHighlighted?: boolean;
   }) => (
     <div
-      className={`bg-white/70 dark:bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg p-6 flex items-center space-x-6 transition-all duration-300 hover:scale-105 hover:shadow-xl ${
-        isHighlighted ? "ring-4 ring-yellow-400" : ""
-      }`}
+      className={`relative overflow-hidden rounded-xl p-6 shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
+        isHighlighted ? "ring-4 ring-yellow-400 dark:ring-yellow-500" : ""
+      } bg-gradient-to-br from-gray-50 via-purple-50 to-blue-100 dark:from-gray-800 dark:via-purple-900/70 dark:to-blue-900/70`}
     >
-      <div className={`p-4 rounded-full ${color}`}>{icon}</div>
-      <div>
-        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
-          {title}
-        </p>
-        <p className="text-3xl font-bold text-gray-900 dark:text-white">
-          {value}
-        </p>
-        {linkTo && (
-          <Link
-            to={linkTo}
-            className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline mt-1"
-          >
-            View details &rarr;
-          </Link>
-        )}
+      <div className="flex items-center space-x-6">
+        {/* Icon with updated styling */}
+        <div className={`rounded-full p-4 shadow-md ${color}`}>{icon}</div>
+
+        {/* Text content */}
+        <div>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+            {title}
+          </p>
+          <p className="text-3xl font-bold text-gray-900 dark:text-white">
+            {value}
+          </p>
+          {linkTo && (
+            <Link
+              to={linkTo}
+              className="mt-1 inline-block text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+            >
+              View details &rarr;
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );
