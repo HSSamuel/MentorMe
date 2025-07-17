@@ -11,6 +11,7 @@ const VideoCallPage = () => {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null); // New state for remote stream
 
   // Effect for getting user media
   useEffect(() => {
@@ -27,9 +28,15 @@ const VideoCallPage = () => {
       });
   }, []);
 
+  // Effect to set the remote video stream when it becomes available
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
   // Effect for WebSocket and WebRTC logic
   useEffect(() => {
-    // Only run if we have a token and the local stream is ready
     if (!token || !localStream) {
       return;
     }
@@ -48,10 +55,9 @@ const VideoCallPage = () => {
         }
       };
 
+      // Updated ontrack handler
       pc.ontrack = (event) => {
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
-        }
+        setRemoteStream(event.streams[0]);
       };
 
       localStream.getTracks().forEach((track) => {
@@ -117,12 +123,9 @@ const VideoCallPage = () => {
         peerConnections.current[socketId].close();
         delete peerConnections.current[socketId];
       }
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = null;
-      }
+      setRemoteStream(null); // Clear the remote stream on user disconnect
     });
 
-    // Cleanup logic
     return () => {
       socketRef.current?.disconnect();
       Object.values(peerConnections.current).forEach((pc) => pc.close());
@@ -145,7 +148,12 @@ const VideoCallPage = () => {
           />
         </div>
         <div className="flex-1">
-          <h2 className="text-lg font-semibold">Mentor's Video</h2>
+          <h2 className="text-lg font-semibold">
+            {/* Dynamically set the title based on whether the remote stream is available */}
+            {remoteStream
+              ? "Participant's Video"
+              : "Waiting for participant..."}
+          </h2>
           <video
             ref={remoteVideoRef}
             autoPlay
