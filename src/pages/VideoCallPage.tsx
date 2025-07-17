@@ -1,3 +1,5 @@
+// Mentor/Frontend/src/pages/VideoCallPage.tsx
+
 import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
@@ -11,10 +13,11 @@ const VideoCallPage = () => {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null); // New state for remote stream
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [isVideoStopped, setIsVideoStopped] = useState(false);
 
-  // Effect for getting user media
-  useEffect(() => {
+  const startCamera = () => {
     navigator.mediaDevices
       .getUserMedia({ video: true, audio: true })
       .then((stream) => {
@@ -26,16 +29,14 @@ const VideoCallPage = () => {
       .catch((error) => {
         console.error("Error accessing media devices.", error);
       });
-  }, []);
+  };
 
-  // Effect to set the remote video stream when it becomes available
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
     }
   }, [remoteStream]);
 
-  // Effect for WebSocket and WebRTC logic
   useEffect(() => {
     if (!token || !localStream) {
       return;
@@ -55,7 +56,6 @@ const VideoCallPage = () => {
         }
       };
 
-      // Updated ontrack handler
       pc.ontrack = (event) => {
         setRemoteStream(event.streams[0]);
       };
@@ -71,73 +71,88 @@ const VideoCallPage = () => {
       auth: { token },
     });
 
-    socketRef.current.emit("join-room", sessionId);
+    const socket = socketRef.current;
 
-    socketRef.current.on("user-joined", (socketId: string) => {
-      const pc = createPeerConnection(socketId);
-      peerConnections.current[socketId] = pc;
-      pc.createOffer()
-        .then((offer) => pc.setLocalDescription(offer))
-        .then(() => {
-          socketRef.current?.emit("offer", {
-            target: socketId,
-            offer: pc.localDescription,
+    socket.emit("join-room", sessionId);
+
+    socket.on("other-user", (otherUserId: string) => {
+      const pc = createPeerConnection(otherUserId);
+      peerConnections.current[otherUserId] = pc;
+
+      // Make the user with the lexicographically smaller ID the offerer
+      if (socket.id < otherUserId) {
+        pc.createOffer()
+          .then((offer) => pc.setLocalDescription(offer))
+          .then(() => {
+            socket.emit("offer", {
+              target: otherUserId,
+              offer: pc.localDescription,
+            });
           });
-        });
+      }
     });
 
-    socketRef.current.on(
-      "offer",
-      async (payload: { from: string; offer: any }) => {
-        const pc = createPeerConnection(payload.from);
-        peerConnections.current[payload.from] = pc;
-        await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        socketRef.current?.emit("answer", {
-          target: payload.from,
-          answer,
-        });
-      }
-    );
+    socket.on("offer", async (payload: { from: string; offer: any }) => {
+      const pc = createPeerConnection(payload.from);
+      peerConnections.current[payload.from] = pc;
+      await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit("answer", { target: payload.from, answer });
+    });
 
-    socketRef.current.on("answer", (payload: { from: string; answer: any }) => {
+    socket.on("answer", (payload: { from: string; answer: any }) => {
       const pc = peerConnections.current[payload.from];
       if (pc) {
         pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
       }
     });
 
-    socketRef.current.on(
-      "ice-candidate",
-      (payload: { from: string; candidate: any }) => {
-        const pc = peerConnections.current[payload.from];
-        if (pc) {
-          pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
-        }
+    socket.on("ice-candidate", (payload: { from: string; candidate: any }) => {
+      const pc = peerConnections.current[payload.from];
+      if (pc) {
+        pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
       }
-    );
+    });
 
-    socketRef.current.on("user-left", (socketId: string) => {
+    socket.on("user-left", (socketId: string) => {
       if (peerConnections.current[socketId]) {
         peerConnections.current[socketId].close();
         delete peerConnections.current[socketId];
       }
-      setRemoteStream(null); // Clear the remote stream on user disconnect
+      setRemoteStream(null);
     });
 
     return () => {
-      socketRef.current?.disconnect();
+      socket.disconnect();
       Object.values(peerConnections.current).forEach((pc) => pc.close());
       localStream.getTracks().forEach((track) => track.stop());
     };
   }, [sessionId, token, localStream]);
 
+  const toggleAudio = () => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+      });
+      setIsAudioMuted(!isAudioMuted);
+    }
+  };
+
+  const toggleVideo = () => {
+    if (localStream) {
+      localStream.getVideoTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+      });
+      setIsVideoStopped(!isVideoStopped);
+    }
+  };
+
   return (
     <div className="p-4">
       <h1 className="text-2xl font-bold">Video Session</h1>
       <div className="flex flex-col md:flex-row gap-4 mt-4">
-        <div className="flex-1">
+        <div className="flex-1 relative">
           <h2 className="text-lg font-semibold">Your Video</h2>
           <video
             ref={localVideoRef}
@@ -146,10 +161,19 @@ const VideoCallPage = () => {
             playsInline
             className="w-full h-auto bg-gray-200 rounded-md"
           />
+          {!localStream && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+              <button
+                onClick={startCamera}
+                className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              >
+                Start Camera
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex-1">
           <h2 className="text-lg font-semibold">
-            {/* Dynamically set the title based on whether the remote stream is available */}
             {remoteStream
               ? "Participant's Video"
               : "Waiting for participant..."}
@@ -162,6 +186,26 @@ const VideoCallPage = () => {
           />
         </div>
       </div>
+      {localStream && (
+        <div className="flex justify-center gap-4 mt-4">
+          <button
+            onClick={toggleAudio}
+            className={`px-4 py-2 text-white rounded-lg ${
+              isAudioMuted ? "bg-red-600" : "bg-gray-600"
+            }`}
+          >
+            {isAudioMuted ? "Unmute Audio" : "Mute Audio"}
+          </button>
+          <button
+            onClick={toggleVideo}
+            className={`px-4 py-2 text-white rounded-lg ${
+              isVideoStopped ? "bg-red-600" : "bg-gray-600"
+            }`}
+          >
+            {isVideoStopped ? "Start Video" : "Stop Video"}
+          </button>
+        </div>
+      )}
     </div>
   );
 };
