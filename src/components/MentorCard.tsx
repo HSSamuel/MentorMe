@@ -7,7 +7,7 @@ interface Mentor {
   id: string;
   profile: {
     name: string;
-    bio: string;
+    bio: string | null; // Allow the bio to be null
     skills: string[];
     avatarUrl?: string;
   };
@@ -30,6 +30,12 @@ const MentorCard = ({ mentor }: { mentor: Mentor }) => {
     return `${apiClient.defaults.baseURL}${url}`.replace("/api", "");
   };
 
+  // --- THIS IS THE FIX ---
+  // Safely shorten the bio, providing a fallback if it's missing.
+  const shortBio = mentor.profile.bio
+    ? `${mentor.profile.bio.substring(0, 100)}...`
+    : "No bio has been provided yet.";
+
   return (
     <div className="group relative block h-full bg-white dark:bg-gray-800 before:absolute before:inset-0 before:rounded-xl before:border-2 before:border-dashed before:border-gray-900 dark:before:border-gray-100">
       <div className="h-full rounded-xl border-2 border-gray-900 dark:border-gray-100 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-blue-900/50 dark:via-purple-900/50 dark:to-pink-900/50 p-6 transition group-hover:-translate-y-2 group-hover:-translate-x-2">
@@ -46,7 +52,8 @@ const MentorCard = ({ mentor }: { mentor: Mentor }) => {
           </h5>
           {/* Mentor Bio */}
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-            {mentor.profile.bio.substring(0, 100)}...
+            {/* Use the safe shortBio variable here */}
+            {shortBio}
           </p>
         </div>
 
