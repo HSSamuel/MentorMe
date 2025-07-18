@@ -1,76 +1,91 @@
+// Mentor/Frontend/src/pages/VideoCallPage.tsx
+
 import React, { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "../contexts/AuthContext";
-import { toast } from "react-hot-toast";
 
 const VideoCallPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   const { token } = useAuth();
-  const navigate = useNavigate();
-
-  // Refs
   const socketRef = useRef<Socket | null>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-
-  // State
+  const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [isVideoStopped, setIsVideoStopped] = useState(false);
 
-  // Function to start the camera and initiate the call
-  const startCall = async () => {
-    console.log("[FRONTEND] Attempting to start call...");
-    try {
-      // 1. Get user media
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
+  const startCamera = () => {
+    navigator.mediaDevices
+      .getUserMedia({ video: true, audio: true })
+      .then((stream) => {
+        setLocalStream(stream);
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+        }
+      })
+      .catch((error) => {
+        console.error("Error accessing media devices.", error);
       });
-      console.log("[FRONTEND] Media stream acquired successfully.");
-      setLocalStream(stream);
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-
-      // 2. Connect to socket server
-      const socket = io(import.meta.env.VITE_API_BASE_URL, { auth: { token } });
-      socketRef.current = socket;
-      console.log("[FRONTEND] Socket connected.");
-
-      // 3. Set up all socket event listeners
-      setupSocketListeners(socket, stream);
-
-      // 4. Join the room
-      console.log("[FRONTEND] Emitting 'join-room' to server.");
-      socket.emit("join-room", sessionId);
-      setIsConnecting(true);
-    } catch (error) {
-      console.error("[FRONTEND] ERROR: Could not start camera.", error);
-      toast.error("Could not start camera. Please check browser permissions.");
-    }
   };
 
-  // Function to set up all socket event listeners
-  const setupSocketListeners = (socket: Socket, stream: MediaStream) => {
-    console.log("[FRONTEND] Socket listeners are being set up.");
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
 
-    socket.on("other-user-ready", (data: { otherUserId: string }) => {
-      console.log(
-        `[FRONTEND] Received 'other-user-ready'. Other user: ${data.otherUserId}`
-      );
-      toast.success("Other user is connecting!");
-      const pc = createPeerConnection(data.otherUserId, stream);
-      if (socket.id < data.otherUserId) {
-        console.log("[FRONTEND] This client is the offerer. Creating offer...");
+  useEffect(() => {
+    if (!token || !localStream) {
+      return;
+    }
+
+    const createPeerConnection = (socketId: string) => {
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      });
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socketRef.current?.emit("ice-candidate", {
+            target: socketId,
+            candidate: event.candidate,
+          });
+        }
+      };
+
+      pc.ontrack = (event) => {
+        setRemoteStream(event.streams[0]);
+      };
+
+      localStream.getTracks().forEach((track) => {
+        pc.addTrack(track, localStream);
+      });
+
+      return pc;
+    };
+
+    socketRef.current = io(import.meta.env.VITE_API_BASE_URL, {
+      auth: { token },
+    });
+
+    const socket = socketRef.current;
+
+    socket.emit("join-room", sessionId);
+
+    socket.on("other-user", (otherUserId: string) => {
+      const pc = createPeerConnection(otherUserId);
+      peerConnections.current[otherUserId] = pc;
+
+      // Make the user with the lexicographically smaller ID the offerer
+      if (socket.id < otherUserId) {
         pc.createOffer()
           .then((offer) => pc.setLocalDescription(offer))
           .then(() => {
-            console.log("[FRONTEND] Sending offer to other user.");
             socket.emit("offer", {
-              target: data.otherUserId,
+              target: otherUserId,
               offer: pc.localDescription,
             });
           });
@@ -78,137 +93,116 @@ const VideoCallPage = () => {
     });
 
     socket.on("offer", async (payload: { from: string; offer: any }) => {
-      console.log(
-        `[FRONTEND] Received 'offer' from ${payload.from}. Creating answer...`
-      );
-      const pc = createPeerConnection(payload.from, stream);
+      const pc = createPeerConnection(payload.from);
+      peerConnections.current[payload.from] = pc;
       await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      console.log("[FRONTEND] Sending answer to other user.");
-      socket.emit("answer", {
-        target: payload.from,
-        answer: pc.localDescription,
-      });
+      socket.emit("answer", { target: payload.from, answer });
     });
 
     socket.on("answer", (payload: { from: string; answer: any }) => {
-      console.log(
-        `[FRONTEND] Received 'answer' from ${payload.from}. Connection should be established.`
-      );
-      peerConnectionRef.current?.setRemoteDescription(
-        new RTCSessionDescription(payload.answer)
-      );
+      const pc = peerConnections.current[payload.from];
+      if (pc) {
+        pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+      }
     });
 
     socket.on("ice-candidate", (payload: { from: string; candidate: any }) => {
-      console.log(`[FRONTEND] Received 'ice-candidate' from ${payload.from}.`);
-      peerConnectionRef.current?.addIceCandidate(
-        new RTCIceCandidate(payload.candidate)
-      );
-    });
-
-    socket.on("user-left", () => {
-      toast.error("The other user has left the call.");
-      handleEndCall();
-    });
-  };
-
-  // Helper to create the RTCPeerConnection
-  const createPeerConnection = (
-    otherUserSocketId: string,
-    stream: MediaStream
-  ) => {
-    if (peerConnectionRef.current) peerConnectionRef.current.close();
-
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    });
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socketRef.current?.emit("ice-candidate", {
-          target: otherUserSocketId,
-          candidate: event.candidate,
-        });
+      const pc = peerConnections.current[payload.from];
+      if (pc) {
+        pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
       }
+    });
+
+    socket.on("user-left", (socketId: string) => {
+      if (peerConnections.current[socketId]) {
+        peerConnections.current[socketId].close();
+        delete peerConnections.current[socketId];
+      }
+      setRemoteStream(null);
+    });
+
+    return () => {
+      socket.disconnect();
+      Object.values(peerConnections.current).forEach((pc) => pc.close());
+      localStream.getTracks().forEach((track) => track.stop());
     };
+  }, [sessionId, token, localStream]);
 
-    pc.ontrack = (event) => {
-      console.log("[FRONTEND] Remote track received!");
-      setRemoteStream(event.streams[0]);
-      setIsConnecting(false);
-    };
-
-    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-    peerConnectionRef.current = pc;
-    return pc;
-  };
-
-  // Function to end the call and clean up resources
-  const handleEndCall = () => {
-    console.log("[FRONTEND] Ending call.");
-    localStream?.getTracks().forEach((track) => track.stop());
-    peerConnectionRef.current?.close();
-    socketRef.current?.disconnect();
-    navigate("/my-sessions");
-  };
-
-  // Effect to attach the remote stream to the video element when it's available
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
+  const toggleAudio = () => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+      });
+      setIsAudioMuted(!isAudioMuted);
     }
-  }, [remoteStream]);
+  };
+
+  const toggleVideo = () => {
+    if (localStream) {
+      localStream.getVideoTracks().forEach((track) => {
+        track.enabled = !track.enabled;
+      });
+      setIsVideoStopped(!isVideoStopped);
+    }
+  };
 
   return (
-    <div className="p-4 bg-gray-900 text-white min-h-screen flex flex-col">
-      <h1 className="text-2xl font-bold text-center mb-4">Video Session</h1>
-      <div className="flex-1 relative bg-black rounded-lg flex items-center justify-center">
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          className={`w-full h-full object-cover ${
-            remoteStream ? "block" : "hidden"
-          }`}
-        />
-        {!localStream && (
-          <button
-            onClick={startCall}
-            className="px-6 py-3 text-white bg-blue-600 rounded-lg hover:bg-blue-700 z-10"
-          >
-            Start Call
-          </button>
-        )}
-        {isConnecting && !remoteStream && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-            <p className="text-xl mt-4">Connecting...</p>
-          </div>
-        )}
-        {!remoteStream && localStream && !isConnecting && (
-          <p className="text-xl">Waiting for other user to join...</p>
-        )}
-        {localStream && (
-          <div className="absolute bottom-4 right-4 w-48 h-36 border-2 border-gray-600 rounded-lg overflow-hidden z-10">
-            <video
-              ref={localVideoRef}
-              autoPlay
-              muted
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          </div>
-        )}
+    <div className="p-4">
+      <h1 className="text-2xl font-bold">Video Session</h1>
+      <div className="flex flex-col md:flex-row gap-4 mt-4">
+        <div className="flex-1 relative">
+          <h2 className="text-lg font-semibold">Your Video</h2>
+          <video
+            ref={localVideoRef}
+            autoPlay
+            muted
+            playsInline
+            className="w-full h-auto bg-gray-200 rounded-md"
+          />
+          {!localStream && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+              <button
+                onClick={startCamera}
+                className="px-4 py-2 text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              >
+                Start Camera
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="flex-1">
+          <h2 className="text-lg font-semibold">
+            {remoteStream
+              ? "Participant's Video"
+              : "Waiting for participant..."}
+          </h2>
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            className="w-full h-auto bg-gray-200 rounded-md"
+          />
+        </div>
       </div>
       {localStream && (
         <div className="flex justify-center gap-4 mt-4">
           <button
-            onClick={handleEndCall}
-            className="px-4 py-2 text-white bg-red-700 rounded-lg hover:bg-red-800"
+            onClick={toggleAudio}
+            className={`px-4 py-2 text-white rounded-lg ${
+              isAudioMuted ? "bg-red-600" : "bg-gray-600"
+            }`}
           >
-            End Call
+            {isAudioMuted ? "Unmute Audio" : "Mute Audio"}
+          </button>
+          <button
+            onClick={toggleVideo}
+            className={`px-4 py-2 text-white rounded-lg ${
+              isVideoStopped ? "bg-red-600" : "bg-gray-600"
+            }`}
+          >
+            {isVideoStopped ? "Start Video" : "Stop Video"}
           </button>
         </div>
       )}
