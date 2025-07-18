@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "../contexts/AuthContext";
 import axios from "../api/axios";
-import "./VideoCallPage.css"; // Make sure this CSS file is in src/pages/
+import "./VideoCallPage.css"; // Ensure this CSS file is in src/pages/
 import SharedNotepad from "../components/SharedNotepad";
 
 // Helper component for the session timer
@@ -160,6 +160,9 @@ const VideoCallPage = () => {
         console.log(
           `EVENT: Connection state with ${targetSocketId} is now ${pc.connectionState}`
         );
+        if (pc.connectionState === "connected") {
+          setStatus("Connected!");
+        }
         if (pc.connectionState === "failed") {
           setStatus(
             "Connection failed. Please check your network and refresh."
