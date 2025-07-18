@@ -1,55 +1,12 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Mentor/Frontend/src/pages/VideoCallPage.css */
 
-/* Apply theme colors directly to the body for a full-page effect */
-@layer base {
-  body {
-    @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300;
-  }
-}
-
-@keyframes rolling-color {
-  0% {
-    color: #6366f1;
-  } /* Indigo */
-  25% {
-    color: #8b5cf6;
-  } /* Purple */
-  50% {
-    color: #ec4899;
-  } /* Pink */
-  75% {
-    color: #3b82f6;
-  } /* Blue */
-  100% {
-    color: #6366f1;
-  } /* Back to Indigo */
-}
-
-.animate-rolling-color {
-  animation: rolling-color 10s infinite linear;
-}
-
-.gradient-background {
-  /* This class can now be removed from pages if a solid theme color is preferred */
-  background-image: linear-gradient(to top, #f3e8ff, #e0e7ff, #ffffff);
-}
-
-body {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* General container for the video call page */
 .video-call-container {
   padding: 1.5rem;
-  background-color: #f8f9fa; /* A light grey, similar to many dashboards */
+  background-color: #f8f9fa;
   min-height: 100vh;
-  font-family: 'Inter', sans-serif; /* Use the same font as your dashboard */
+  font-family: 'Inter', sans-serif;
 }
 
-/* Header and Status text */
 .video-call-header {
   color: #1a202c;
   font-weight: 700;
@@ -59,10 +16,9 @@ body {
 .video-call-status {
   color: #4a5568;
   margin-bottom: 1.5rem;
-  min-height: 24px; /* Prevents layout shift as status text changes */
+  min-height: 24px;
 }
 
-/* Main grid for video streams */
 .video-grid {
   display: flex;
   gap: 1.5rem;
@@ -75,7 +31,6 @@ body {
   }
 }
 
-/* Individual video container */
 .video-participant-container {
   flex: 1;
   background-color: #ffffff;
@@ -98,7 +53,6 @@ body {
   border-radius: 0.5rem;
 }
 
-/* 'Start Camera' button overlay */
 .start-camera-overlay {
     position: absolute;
     inset: 0;
@@ -112,7 +66,7 @@ body {
 .start-camera-button {
   padding: 0.75rem 1.5rem;
   color: white;
-  background-color: #3b82f6; /* Your brand's primary blue */
+  background-color: #3b82f6;
   border: none;
   border-radius: 0.5rem;
   font-size: 1rem;
@@ -122,10 +76,9 @@ body {
 }
 
 .start-camera-button:hover {
-    background-color: #2563eb; /* A slightly darker blue for hover */
+    background-color: #2563eb;
 }
 
-/* Control bar for mute/video buttons */
 .control-bar {
   display: flex;
   justify-content: center;
@@ -144,9 +97,9 @@ body {
 }
 
 .control-button.active {
-    background-color: #3b82f6; /* Blue for active states */
+    background-color: #3b82f6;
 }
 
 .control-button.inactive {
-    background-color: #dc2626; /* Red for inactive/muted states */
+    background-color: #dc2626;
 }
