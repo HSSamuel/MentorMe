@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Socket.IO Connection Test</title>
+</head>
+<body>
+  <h1>Socket.IO Connection Test</h1>
+  <p>Open the browser console (F12) to see the connection status.</p>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    console.log("Attempting to connect to the backend server...");
+
+    // IMPORTANT: This is the hardcoded token you would get from your backend.
+    // We will generate one manually for this test.
+    // For now, we will test the connection without a token.
+    
+    const socket = io("http://localhost:5000", {
+      // We are intentionally not sending an auth token at first
+      // to see if the server is reachable at all.
+    });
+
+    socket.on("connect", () => {
+      console.log("✅✅✅ SUCCESS: Connected to the backend server!");
+      console.log("Socket ID:", socket.id);
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("❌❌❌ FAILURE: Could not connect to the backend server.");
+      console.error("Error details:", error.message);
+      console.error("This is likely a CORS error. Ensure the backend is running with 'npm run dev' and the CORS configuration in index.ts is correct.");
+    });
+  </script>
+</body>
+</html>

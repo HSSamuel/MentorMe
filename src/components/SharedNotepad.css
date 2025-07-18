@@ -1,0 +1,89 @@
+/* --- Shared Notepad Styles --- */
+
+/* Default state (hidden) for mobile */
+.notepad-container {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 60%; /* Takes up the bottom 60% of the screen */
+  background-color: #fff;
+  border-top: 1px solid #e2e8f0;
+  border-radius: 1rem 1rem 0 0;
+  box-shadow: 0 -10px 15px -3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease-in-out;
+  transform: translateY(100%); /* Start hidden at the bottom */
+  z-index: 20;
+}
+
+/* Visible state for mobile */
+.notepad-container.open {
+  transform: translateY(0);
+}
+
+/* Styles for desktop screens (overrides mobile) */
+@media (min-width: 768px) {
+  .notepad-container {
+    top: 1rem;
+    right: 1rem;
+    left: auto;
+    bottom: auto;
+    width: 350px; /* A bit wider for desktop */
+    height: calc(100% - 2rem);
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    transform: translateX(calc(100% + 2rem)); /* Start hidden at the side */
+  }
+
+  .notepad-container.open {
+    transform: translateX(0);
+  }
+}
+
+.notepad-header {
+  padding: 1rem;
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: center;
+}
+
+.notepad-textarea {
+  flex-grow: 1;
+  width: 100%;
+  border: none;
+  padding: 1rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  background-color: transparent;
+  border-bottom-left-radius: 1rem;
+  border-bottom-right-radius: 1rem;
+}
+
+@media (min-width: 768px) {
+  .notepad-textarea {
+    border-radius: 0 0 0.75rem 0.75rem;
+  }
+}
+
+.notepad-container.dark {
+  background-color: #2d3748; /* Dark card background */
+  border-color: #4a5568;
+  color: #e2e8f0; /* Light text */
+}
+
+.notepad-container.dark .notepad-header {
+  border-bottom-color: #4a5568;
+}
+
+.notepad-container.dark .notepad-textarea {
+  color: #e2e8f0;
+  background-color: transparent;
+}
+
+.notepad-container.dark .notepad-textarea::placeholder {
+  color: #718096; /* Lighter placeholder text */
+}
