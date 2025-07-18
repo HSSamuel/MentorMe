@@ -85,9 +85,28 @@ const NotificationBell = () => {
     }
   };
 
+  // --- NEW: Function to delete a single notification ---
+  const handleDelete = async (notificationId: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+    try {
+      await apiClient.delete(`/notifications/${notificationId}`);
+    } catch (error) {
+      console.error("Failed to delete notification:", error);
+    }
+  };
+
+  // --- NEW: Function to delete all notifications ---
+  const handleDeleteAll = async () => {
+    setNotifications([]);
+    try {
+      await apiClient.delete(`/notifications`);
+    } catch (error) {
+      console.error("Failed to delete all notifications:", error);
+    }
+  };
+
   return (
     <div className="relative" ref={wrapperRef}>
-      {/* The bell icon button that toggles the notification panel */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-white opacity-80 hover:opacity-100 focus:outline-none transition-opacity"
@@ -105,18 +124,19 @@ const NotificationBell = () => {
             d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
           />
         </svg>
-        {/* A red dot that appears when there are unread notifications */}
         {unreadCount > 0 && (
           <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
         )}
       </button>
 
-      {/* The notification panel, which is only rendered if 'isOpen' is true */}
       {isOpen && (
         <NotificationPanel
           notifications={notifications}
           onMarkAsRead={handleMarkAsRead}
           onMarkAllAsRead={handleMarkAllAsRead}
+          onDelete={handleDelete} // Pass the new delete handler
+          onDeleteAll={handleDeleteAll} // Pass the new delete all handler
+          onClose={() => setIsOpen(false)} // Pass the close handler
         />
       )}
     </div>
