@@ -1,7 +1,14 @@
 import React, { Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, Link } from "react-router-dom";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
+
+// A more visually appealing loader for the Suspense fallback
+const PageLoader = () => (
+  <div className="flex justify-center items-center h-screen w-full">
+    <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+  </div>
+);
 
 // Lazily import all the page components
 const LoginPage = React.lazy(() => import("./pages/LoginPage"));
@@ -33,7 +40,6 @@ const ForgotPasswordPage = React.lazy(
 const VideoCallPage = React.lazy(() => import("./pages/VideoCallPage"));
 const ResetPasswordPage = React.lazy(() => import("./pages/ResetPasswordPage"));
 const GoalsPage = React.lazy(() => import("./pages/GoalsPage"));
-// 1. LAZILY IMPORT THE NEW SESSION INSIGHTS PAGE
 const SessionInsightsPage = React.lazy(
   () => import("./pages/SessionInsightsPage")
 );
@@ -41,7 +47,7 @@ const SessionInsightsPage = React.lazy(
 function App() {
   return (
     <Layout>
-      <Suspense fallback={<div>Loading...</div>}>
+      <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public Auth Routes */}
           <Route path="/login" element={<LoginPage />} />
@@ -138,8 +144,9 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* --- [UPDATED] Corrected path to fix routing error --- */}
           <Route
-            path="/my-sessions"
+            path="/sessions"
             element={
               <ProtectedRoute>
                 <SessionsListPage />
@@ -154,7 +161,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* 2. ADD THE NEW ROUTE FOR THE INSIGHTS PAGE */}
           <Route
             path="/session/:sessionId/insights"
             element={
@@ -197,6 +203,8 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* --- [REMOVED] Catch-all route for 404 Not Found --- */}
         </Routes>
       </Suspense>
     </Layout>

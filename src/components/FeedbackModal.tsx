@@ -1,127 +1,212 @@
-import React, { useState } from "react";
-import apiClient from "../api/axios";
-import { useAuth } from "../contexts/AuthContext";
+import React, { Suspense } from "react";
+import { Routes, Route, Navigate, Link } from "react-router-dom";
+import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
 
-interface FeedbackModalProps {
-  session: any;
-  onClose: () => void;
-  onFeedbackSubmitted: (updatedSession: any) => void;
+// A more visually appealing loader for the Suspense fallback
+const PageLoader = () => (
+  <div className="flex justify-center items-center h-screen w-full">
+    <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+  </div>
+);
+
+// Lazily import all the page components
+const LoginPage = React.lazy(() => import("./pages/LoginPage"));
+const RegisterPage = React.lazy(() => import("./pages/RegisterPage"));
+const ProfileEditPage = React.lazy(() => import("./pages/ProfileEditPage"));
+const MentorListPage = React.lazy(() => import("./pages/MentorListPage"));
+const MentorRequestsPage = React.lazy(
+  () => import("./pages/MentorRequestsPage")
+);
+const MyRequestsPage = React.lazy(() => import("./pages/MyRequestsPage"));
+const MyMentorsPage = React.lazy(() => import("./pages/MyMentorsPage"));
+const SetAvailabilityPage = React.lazy(
+  () => import("./pages/SetAvailabilityPage")
+);
+const SessionBookingPage = React.lazy(
+  () => import("./pages/SessionBookingPage")
+);
+const SessionsListPage = React.lazy(() => import("./pages/SessionsListPage"));
+const AdminUsersPage = React.lazy(() => import("./pages/AdminUsersPage"));
+const AdminMatchesPage = React.lazy(() => import("./pages/AdminMatchesPage"));
+const AdminSessionsPage = React.lazy(() => import("./pages/AdminSessionsPage"));
+const DashboardPage = React.lazy(() => import("./pages/DashboardPage"));
+const MessagesPage = React.lazy(() => import("./pages/MessagesPage"));
+const UserProfilePage = React.lazy(() => import("./pages/MentorProfilePage"));
+const AuthCallbackPage = React.lazy(() => import("./pages/AuthCallbackPage"));
+const ForgotPasswordPage = React.lazy(
+  () => import("./pages/ForgotPasswordPage")
+);
+const VideoCallPage = React.lazy(() => import("./pages/VideoCallPage"));
+const ResetPasswordPage = React.lazy(() => import("./pages/ResetPasswordPage"));
+const GoalsPage = React.lazy(() => import("./pages/GoalsPage"));
+const SessionInsightsPage = React.lazy(
+  () => import("./pages/SessionInsightsPage")
+);
+
+function App() {
+  return (
+    <Layout>
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          {/* Public Auth Routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/auth/callback" element={<AuthCallbackPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route
+            path="/reset-password/:token"
+            element={<ResetPasswordPage />}
+          />
+
+          {/* Main Application Routes */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/users/:id" element={<UserProfilePage />} />
+
+          {/* Protected Routes */}
+          <Route
+            path="/mentor/:id"
+            element={
+              <ProtectedRoute>
+                <UserProfilePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile/edit"
+            element={
+              <ProtectedRoute>
+                <ProfileEditPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/goals"
+            element={
+              <ProtectedRoute>
+                <GoalsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mentors"
+            element={
+              <ProtectedRoute allowedRoles={["MENTEE"]}>
+                <MentorListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/requests"
+            element={
+              <ProtectedRoute allowedRoles={["MENTOR"]}>
+                <MentorRequestsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-requests"
+            element={
+              <ProtectedRoute allowedRoles={["MENTEE"]}>
+                <MyRequestsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-mentors"
+            element={
+              <ProtectedRoute allowedRoles={["MENTEE"]}>
+                <MyMentorsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/availability"
+            element={
+              <ProtectedRoute allowedRoles={["MENTOR"]}>
+                <SetAvailabilityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/book-session/:mentorId"
+            element={
+              <ProtectedRoute allowedRoles={["MENTEE"]}>
+                <SessionBookingPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* --- [FIXED] Path updated to match the application's navigation links --- */}
+          <Route
+            path="/my-sessions"
+            element={
+              <ProtectedRoute>
+                <SessionsListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/session/:sessionId/call"
+            element={
+              <ProtectedRoute>
+                <VideoCallPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/session/:sessionId/insights"
+            element={
+              <ProtectedRoute>
+                <SessionInsightsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/messages"
+            element={
+              <ProtectedRoute>
+                <MessagesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin Routes */}
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
+                <AdminUsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/matches"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
+                <AdminMatchesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/sessions"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
+                <AdminSessionsPage />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Suspense>
+    </Layout>
+  );
 }
 
-const FeedbackModal = ({
-  session,
-  onClose,
-  onFeedbackSubmitted,
-}: FeedbackModalProps) => {
-  const { user } = useAuth();
-  const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState("");
-  const [error, setError] = useState("");
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (user?.role === "MENTEE" && rating === 0) {
-      setError("Please select a rating from 1 to 5.");
-      return;
-    }
-
-    try {
-      const payload = {
-        comment,
-        ...(user?.role === "MENTEE" && { rating }),
-      };
-
-      const response = await apiClient.put(
-        `/sessions/${session.id}/feedback`,
-        payload
-      );
-      onFeedbackSubmitted(response.data);
-      onClose();
-    } catch (err) {
-      setError("Failed to submit feedback.");
-    }
-  };
-
-  const StarRating = () => (
-    <div className="flex items-center justify-center space-x-2">
-      {[1, 2, 3, 4, 5].map((star) => (
-        <button
-          type="button"
-          key={star}
-          onClick={() => setRating(star)}
-          className={`text-4xl transition-colors ${
-            star <= rating
-              ? "text-yellow-400"
-              : "text-gray-300 hover:text-yellow-300"
-          }`}
-        >
-          ★
-        </button>
-      ))}
-    </div>
-  );
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-8 rounded-lg shadow-2xl w-full max-w-lg m-4">
-        <h3 className="text-2xl font-bold text-center text-gray-800 mb-4">
-          Share Your Feedback
-        </h3>
-        <p className="text-center text-gray-500 mb-6">
-          Session with{" "}
-          {user?.role === "MENTOR"
-            ? session.mentee.profile.name
-            : session.mentor.profile.name}{" "}
-          on {new Date(session.date).toLocaleDateString()}
-        </p>
-        <form onSubmit={handleSubmit}>
-          {user?.role === "MENTEE" && (
-            <div className="mb-6">
-              <label className="block text-center text-sm font-medium text-gray-700 mb-2">
-                Your Rating
-              </label>
-              <StarRating />
-            </div>
-          )}
-          <div className="mb-4">
-            <label
-              htmlFor="comment"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Comment
-            </label>
-            <textarea
-              id="comment"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              className="w-full h-32 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              placeholder="Share your thoughts on the session..."
-            />
-          </div>
-          {error && (
-            <p className="text-red-500 text-sm text-center mb-4">{error}</p>
-          )}
-          <div className="flex justify-end gap-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Submit Feedback
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-};
-
-export default FeedbackModal;
+export default App;

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
+import Video, { LocalVideoTrack, Room } from "twilio-video";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
@@ -7,10 +8,16 @@ import axios from "../api/axios";
 import "./VideoCallPage.css";
 import SharedNotepad from "../components/SharedNotepad";
 
+// --- Types and Helper Components ---
 type CallStatusType = "info" | "success" | "error" | "connecting";
 interface CallStatus {
   message: string;
   type: CallStatusType;
+}
+interface ChatMessage {
+  message: string;
+  senderName: string;
+  isLocal: boolean;
 }
 
 const LiveTranscript = ({ transcript }: { transcript: string }) => (
@@ -24,18 +31,17 @@ const LiveTranscript = ({ transcript }: { transcript: string }) => (
 
 const SessionTimer = ({ startTime }: { startTime: number }) => {
   const [timeElapsed, setTimeElapsed] = useState(0);
-
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeElapsed(Date.now() - startTime);
-    }, 1000);
+    const timer = setInterval(
+      () => setTimeElapsed(Date.now() - startTime),
+      1000
+    );
     return () => clearInterval(timer);
   }, [startTime]);
 
   const totalSeconds = Math.floor(timeElapsed / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-
   let timerColor = "text-green-500";
   if (minutes >= 45) timerColor = "text-yellow-500";
   if (minutes >= 55) timerColor = "text-red-500";
@@ -51,29 +57,36 @@ const VideoCallPage = () => {
   const { theme } = useTheme();
   const { sessionId } = useParams<{ sessionId: string }>();
   const { token: authToken, user } = useAuth();
+
+  // --- State Variables ---
   const [videoToken, setVideoToken] = useState<string | null>(null);
-  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
-  const [isNotepadOpen, setIsNotepadOpen] = useState(false);
-  const [notepadContent, setNotepadContent] = useState("");
-  const socketRef = useRef<Socket | null>(null);
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const peerConnections = useRef<Record<string, RTCPeerConnection>>({});
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const [isAudioMuted, setIsAudioMuted] = useState(false);
-  const [isVideoStopped, setIsVideoStopped] = useState(false);
+  const [room, setRoom] = useState<Room | null>(null);
   const [status, setStatus] = useState<CallStatus>({
     message: "Initializing...",
     type: "info",
   });
-  const isMentor = user?.role === "MENTOR";
+  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
 
+  const localVideoRef = useRef<HTMLDivElement>(null);
+  const remoteVideoRef = useRef<HTMLDivElement>(null);
+  const dataSocketRef = useRef<Socket | null>(null);
+
+  // --- Feature States ---
+  const [isNotepadOpen, setIsNotepadOpen] = useState(false);
+  const [notepadContent, setNotepadContent] = useState("");
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+  const [isVideoStopped, setIsVideoStopped] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcript, setTranscript] = useState("");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const transcriptionSocketRef = useRef<WebSocket | null>(null);
 
+  // --- Core Logic ---
+
+  // 1. Get the Twilio Video Token
   useEffect(() => {
     if (!sessionId || !authToken) return;
     setStatus({ message: "Authenticating...", type: "connecting" });
@@ -85,255 +98,210 @@ const VideoCallPage = () => {
       )
       .then((response) => {
         setVideoToken(response.data.videoToken);
-        setStatus({ message: "Ready to start camera.", type: "info" });
+        setStatus({ message: "Ready to join session.", type: "info" });
       })
-      .catch((error) => {
-        console.error("ERROR: Failed to get video token.", error);
-        setStatus({ message: "Error: Authentication failed.", type: "error" });
-      });
+      .catch((error) =>
+        setStatus({
+          message: "Error: Could not authenticate for call.",
+          type: "error",
+        })
+      );
   }, [sessionId, authToken]);
 
-  const startCamera = () => {
-    setStatus({ message: "Accessing camera...", type: "connecting" });
-    navigator.mediaDevices
-      .getUserMedia({ video: true, audio: true })
-      .then((stream) => {
-        setLocalStream(stream);
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-        setStatus({
-          message: "Camera is on. Waiting for other user...",
-          type: "connecting",
-        });
-        if (!isMentor) {
-          axios
-            .post(
-              `/sessions/${sessionId}/notify-call`,
-              {},
-              {
-                headers: { Authorization: `Bearer ${authToken}` },
-              }
-            )
-            .catch((err) => {
-              console.error("Could not send notification to mentor:", err);
-            });
-        }
-      })
-      .catch((error) => {
-        console.error("ERROR: Could not access media devices.", error);
-        setStatus({
-          message: "Error: Camera not found or permission denied.",
-          type: "error",
-        });
-      });
-  };
-
+  // 2. Connect to Twilio Room AND our Data Socket
   useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-      if (!sessionStartTime) {
-        setSessionStartTime(Date.now());
-      }
-    }
-  }, [remoteStream, sessionStartTime]);
+    if (!videoToken) return;
 
+    let videoRoom: Room | null = null;
+    let dataSocket: Socket | null = null;
+
+    // --- Connect to Twilio for Video ---
+    setStatus({ message: "Joining room...", type: "connecting" });
+    Video.connect(videoToken, {
+      name: sessionId,
+      audio: true,
+      video: { width: 1280 },
+    })
+      .then((room) => {
+        videoRoom = room;
+        setRoom(room);
+        setStatus({
+          message: "Joined room. Waiting for other participant...",
+          type: "success",
+        });
+
+        // Attach local video
+        const localParticipant = room.localParticipant;
+        localParticipant.tracks.forEach((publication) => {
+          if (publication.track) {
+            localVideoRef.current?.appendChild(publication.track.attach());
+          }
+        });
+
+        const handleParticipant = (participant: Video.RemoteParticipant) => {
+          setStatus({ message: "Participant connected!", type: "success" });
+          if (!sessionStartTime) setSessionStartTime(Date.now());
+          participant.tracks.forEach((publication) => {
+            if (publication.track)
+              remoteVideoRef.current?.appendChild(publication.track.attach());
+          });
+          participant.on("trackSubscribed", (track) =>
+            remoteVideoRef.current?.appendChild(track.attach())
+          );
+        };
+        room.on("participantConnected", handleParticipant);
+        room.participants.forEach(handleParticipant);
+        room.on("participantDisconnected", () => {
+          setStatus({ message: "The other user has left.", type: "info" });
+          if (remoteVideoRef.current) remoteVideoRef.current.innerHTML = "";
+        });
+      })
+      .catch((error) =>
+        setStatus({
+          message: "Error: Failed to connect to video service.",
+          type: "error",
+        })
+      );
+
+    // --- Connect to our Data Socket for Chat/Notepad ---
+    dataSocket = io(import.meta.env.VITE_API_BASE_URL, {
+      auth: { token: authToken },
+    });
+    dataSocketRef.current = dataSocket;
+    dataSocket.emit("join-data-room", sessionId);
+
+    dataSocket.on("notepad-update", (content: string) =>
+      setNotepadContent(content)
+    );
+    dataSocket.on(
+      "new-chat-message",
+      (message: { message: string; senderName: string; socketId: string }) => {
+        setChatMessages((prev) => [...prev, { ...message, isLocal: false }]);
+      }
+    );
+
+    return () => {
+      videoRoom?.disconnect();
+      dataSocket?.disconnect();
+    };
+  }, [videoToken, sessionId]);
+
+  // --- Feature Handlers ---
   const handleNotepadChange = useCallback(
     (newContent: string) => {
       setNotepadContent(newContent);
-      if (socketRef.current) {
-        socketRef.current.emit("notepad-change", {
-          roomId: sessionId,
-          content: newContent,
-        });
-      }
+      dataSocketRef.current?.emit("notepad-change", {
+        roomId: sessionId,
+        content: newContent,
+      });
     },
     [sessionId]
   );
 
-  useEffect(() => {
-    if (!isTranscribing || !localStream) return;
-
-    const DEEPGRAM_API_KEY =
-      import.meta.env.VITE_DEEPGRAM_API_KEY || "YOUR_DEEPGRAM_API_KEY";
-    const socketUrl = `wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=16000&channels=1&puncutate=true&interim_results=true`;
-
-    const transcriptionSocket = new WebSocket(socketUrl, [
-      "token",
-      DEEPGRAM_API_KEY,
-    ]);
-
-    transcriptionSocket.onopen = () => {
-      console.log("Transcription socket connected.");
-      const mediaRecorder = new MediaRecorder(localStream, {
-        mimeType: "audio/webm",
-      });
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0 && transcriptionSocket.readyState === 1) {
-          transcriptionSocket.send(event.data);
-        }
-      };
-
-      mediaRecorderRef.current = mediaRecorder;
-      mediaRecorder.start(250);
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    const message = {
+      message: chatInput,
+      senderName: user?.profile?.name || "User",
+      isLocal: true,
     };
-
-    transcriptionSocket.onmessage = (message) => {
-      const data = JSON.parse(message.data);
-      const newTranscript = data.channel.alternatives[0].transcript;
-      if (newTranscript && data.is_final) {
-        setTranscript((prev) => prev + newTranscript + " ");
-      }
-    };
-
-    transcriptionSocket.onclose = () => {
-      console.log("Transcription socket closed.");
-    };
-
-    transcriptionSocketRef.current = transcriptionSocket;
-
-    return () => {
-      mediaRecorderRef.current?.stop();
-      transcriptionSocketRef.current?.close();
-    };
-  }, [isTranscribing, localStream]);
-
-  useEffect(() => {
-    if (!videoToken || !localStream) return;
-
-    const socket = io(import.meta.env.VITE_API_BASE_URL, {
-      auth: { token: videoToken },
+    setChatMessages((prev) => [...prev, message]);
+    dataSocketRef.current?.emit("send-chat-message", {
+      roomId: sessionId,
+      ...message,
     });
-    socketRef.current = socket;
-
-    socket.emit("get-notepad-content", sessionId);
-    socket.on("notepad-content", (content: string) => {
-      setNotepadContent(content);
-    });
-
-    const createPeerConnection = (targetSocketId: string) => {
-      const iceServers = [
-        { urls: "stun:stun.l.google.com:19302" },
-        {
-          urls: "turn:openrelay.metered.ca:80",
-          username: "openrelayproject",
-          credential: "openrelayproject",
-        },
-        {
-          urls: "turn:openrelay.metered.ca:443",
-          username: "openrelayproject",
-          credential: "openrelayproject",
-        },
-      ];
-
-      const pc = new RTCPeerConnection({ iceServers });
-
-      localStream
-        .getTracks()
-        .forEach((track) => pc.addTrack(track, localStream));
-
-      pc.ontrack = (event) => {
-        setStatus({ message: "Connected!", type: "success" });
-        setRemoteStream(event.streams[0]);
-      };
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit("ice-candidate", {
-            target: targetSocketId,
-            candidate: event.candidate,
-          });
-        }
-      };
-
-      pc.onconnectionstatechange = () => {
-        console.log(`[WebRTC] State: ${pc.connectionState}`);
-        if (pc.connectionState === "failed") {
-          setStatus({ message: "Connection failed.", type: "error" });
-        }
-      };
-
-      peerConnections.current[targetSocketId] = pc;
-      return pc;
-    };
-
-    socket.on("connect", () => {
-      socket.emit("join-room", sessionId);
-    });
-
-    socket.on("other-user", (otherUserId: string) => {
-      const pc = createPeerConnection(otherUserId);
-      pc.createOffer()
-        .then((offer) => pc.setLocalDescription(offer))
-        .then(() => {
-          socket.emit("offer", {
-            target: otherUserId,
-            offer: pc.localDescription,
-          });
-        });
-    });
-
-    socket.on("offer", async ({ from, offer }) => {
-      const pc = createPeerConnection(from);
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit("answer", { target: from, answer });
-    });
-
-    socket.on("answer", ({ from, answer }) => {
-      const pc = peerConnections.current[from];
-      if (pc) {
-        pc.setRemoteDescription(new RTCSessionDescription(answer));
-      }
-    });
-
-    socket.on("ice-candidate", ({ from, candidate }) => {
-      const pc = peerConnections.current[from];
-      if (pc) {
-        pc.addIceCandidate(new RTCIceCandidate(candidate));
-      }
-    });
-
-    socket.on("user-left", (id: string) => {
-      peerConnections.current[id]?.close();
-      delete peerConnections.current[id];
-      setRemoteStream(null);
-      setStatus({ message: "The other user has left the call.", type: "info" });
-    });
-
-    return () => {
-      socket.disconnect();
-      Object.values(peerConnections.current).forEach((pc) => pc.close());
-      localStream.getTracks().forEach((track) => track.stop());
-    };
-  }, [localStream, videoToken, sessionId]);
+    setChatInput("");
+  };
 
   const toggleAudio = () => {
-    localStream
-      ?.getAudioTracks()
-      .forEach((track) => (track.enabled = !track.enabled));
-    setIsAudioMuted((prev) => !prev);
+    room?.localParticipant.audioTracks.forEach((pub) => {
+      if (pub.track.isEnabled) pub.track.disable();
+      else pub.track.enable();
+      setIsAudioMuted(!pub.track.isEnabled);
+    });
   };
 
   const toggleVideo = () => {
-    localStream
-      ?.getVideoTracks()
-      .forEach((track) => (track.enabled = !track.enabled));
-    setIsVideoStopped((prev) => !prev);
+    room?.localParticipant.videoTracks.forEach((pub) => {
+      if (pub.track.isEnabled) pub.track.disable();
+      else pub.track.enable();
+      setIsVideoStopped(!pub.track.isEnabled);
+    });
   };
 
-  const saveTranscriptAndGetInsights = async () => {
-    if (!transcript.trim() || !sessionId) return;
-    try {
-      await axios.post(
-        `/sessions/${sessionId}/insights`,
-        { transcript },
-        { headers: { Authorization: `Bearer ${authToken}` } }
-      );
-      alert("Session insights have been saved!");
-    } catch (error) {
-      console.error("Failed to save transcript and get insights:", error);
-      alert("Could not save session insights. Please try again.");
+  const handleToggleScreenShare = async () => {
+    if (isScreenSharing) {
+      const { localParticipant } = room!;
+      const screenTrack = Array.from(localParticipant.videoTracks.values())[0]
+        .track as LocalVideoTrack;
+      localParticipant.unpublishTrack(screenTrack);
+      screenTrack.stop();
+      const newVideoTrack = await Video.createLocalVideoTrack();
+      localParticipant.publishTrack(newVideoTrack);
+      setIsScreenSharing(false);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+        });
+        const screenTrack = new Video.LocalVideoTrack(stream.getTracks()[0]);
+        const { localParticipant } = room!;
+        localParticipant.unpublishTrack(
+          Array.from(localParticipant.videoTracks.values())[0].track
+        );
+        localParticipant.publishTrack(screenTrack);
+        setIsScreenSharing(true);
+        screenTrack.mediaStreamTrack.onended = () => {
+          handleToggleScreenShare();
+        };
+      } catch (error) {
+        console.error("Screen share failed:", error);
+        setIsScreenSharing(false);
+      }
+    }
+  };
+
+  const toggleTranscription = () => {
+    if (isTranscribing) {
+      mediaRecorderRef.current?.stop();
+      transcriptionSocketRef.current?.close();
+      setIsTranscribing(false);
+    } else {
+      if (room?.localParticipant) {
+        const localAudioTrack = Array.from(
+          room.localParticipant.audioTracks.values()
+        )[0]?.track;
+        if (localAudioTrack) {
+          const stream = new MediaStream([localAudioTrack.mediaStreamTrack]);
+          const DEEPGRAM_API_KEY = import.meta.env.VITE_DEEPGRAM_API_KEY;
+          const socketUrl = `wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=16000&channels=1&punctuate=true&interim_results=true`;
+
+          const socket = new WebSocket(socketUrl, ["token", DEEPGRAM_API_KEY]);
+
+          socket.onopen = () => {
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder.ondataavailable = (event) => {
+              if (event.data.size > 0 && socket.readyState === 1) {
+                socket.send(event.data);
+              }
+            };
+            mediaRecorderRef.current = mediaRecorder;
+            mediaRecorder.start(250);
+            setIsTranscribing(true);
+          };
+
+          socket.onmessage = (message) => {
+            const data = JSON.parse(message.data);
+            const newTranscript = data.channel.alternatives[0].transcript;
+            if (newTranscript && data.is_final) {
+              setTranscript((prev) => prev + newTranscript + " ");
+            }
+          };
+
+          transcriptionSocketRef.current = socket;
+        }
+      }
     }
   };
 
@@ -361,57 +329,56 @@ const VideoCallPage = () => {
       </p>
 
       <div className={`video-main-area ${getStatusClasses(status.type)}`}>
-        {!remoteStream ? (
-          <div className="single-camera-view">
-            <video
-              ref={localVideoRef}
-              autoPlay
-              muted
-              playsInline
-              className="video-element"
-            />
-            {!localStream && videoToken && (
-              <div className="start-camera-overlay">
-                <button onClick={startCamera} className="start-camera-button">
-                  Start Camera
-                </button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="split-screen-view">
-            <div className="remote-video-container">
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                className="video-element"
-              />
-            </div>
-            <div className="local-video-container">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                muted
-                playsInline
-                className="video-element"
-              />
-            </div>
-          </div>
-        )}
+        <div className="video-content">
+          <div ref={remoteVideoRef} className="remote-video-container" />
+          <div ref={localVideoRef} className="local-video-container" />
+        </div>
 
-        <div className="sidebar-features">
+        <div className="sidebar-container">
           <SharedNotepad
             isOpen={isNotepadOpen}
+            onToggle={() => setIsNotepadOpen((prev) => !prev)}
             content={notepadContent}
             onContentChange={handleNotepadChange}
             theme={theme}
           />
+          <div className="chat-container">
+            <h3 className="chat-header">In-Call Chat</h3>
+            <div className="chat-messages">
+              {chatMessages.map((msg, index) => (
+                <div
+                  key={index}
+                  className={`chat-message ${msg.isLocal ? "local" : "remote"}`}
+                >
+                  <div className="chat-bubble">{msg.message}</div>
+                  <div className="chat-sender">
+                    {msg.isLocal ? "You" : msg.senderName}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <form onSubmit={handleSendMessage} className="chat-input-form">
+              <input
+                type="text"
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                className="chat-input"
+                placeholder="Type a message..."
+              />
+              <button
+                type="submit"
+                className="chat-send-button"
+                disabled={!chatInput.trim()}
+              >
+                Send
+              </button>
+            </form>
+          </div>
           {isTranscribing && <LiveTranscript transcript={transcript} />}
         </div>
       </div>
 
-      {localStream && (
+      {room && (
         <div className="control-bar">
           <button
             onClick={toggleAudio}
@@ -428,27 +395,27 @@ const VideoCallPage = () => {
             {isVideoStopped ? "Start Video" : "Stop Video"}
           </button>
           <button
-            onClick={() => setIsNotepadOpen((prev) => !prev)}
-            className="control-button active"
+            onClick={handleToggleScreenShare}
+            className={`control-button ${
+              isScreenSharing ? "inactive" : "active"
+            }`}
           >
-            {isNotepadOpen ? "Hide Notes" : "Show Notes"}
+            {isScreenSharing ? "Stop Sharing" : "Share Screen"}
           </button>
           <button
-            onClick={() => setIsTranscribing((prev) => !prev)}
+            onClick={toggleTranscription}
             className={`control-button ${
               isTranscribing ? "inactive" : "active"
             }`}
           >
             {isTranscribing ? "Stop Transcript" : "Start Transcript"}
           </button>
-          {transcript && (
-            <button
-              onClick={saveTranscriptAndGetInsights}
-              className="control-button save-insights-button"
-            >
-              Save Insights
-            </button>
-          )}
+          <button
+            onClick={() => room.disconnect()}
+            className="control-button inactive"
+          >
+            Leave Session
+          </button>
         </div>
       )}
     </div>

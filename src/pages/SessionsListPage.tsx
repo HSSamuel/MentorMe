@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import apiClient from "../api/axios";
 import { useAuth } from "../contexts/AuthContext";
 import FeedbackModal from "../components/FeedbackModal";
@@ -58,9 +58,27 @@ const SessionsListPage = () => {
     );
   };
 
-  const now = new Date();
-  const upcomingSessions = sessions.filter((s) => new Date(s.date) >= now);
-  const pastSessions = sessions.filter((s) => new Date(s.date) < now);
+  const now = new Date(); // --- [UPDATED] Memoized and sorted upcoming sessions ---
+
+  const upcomingSessions = useMemo(
+    () =>
+      sessions
+        .filter((s) => new Date(s.date) >= now)
+        .sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        ),
+    [sessions]
+  ); // --- [UPDATED] Memoized and sorted past sessions ---
+
+  const pastSessions = useMemo(
+    () =>
+      sessions
+        .filter((s) => new Date(s.date) < now)
+        .sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        ),
+    [sessions]
+  );
 
   const renderSessionCard = (session: any) => {
     const sessionDate = new Date(session.date);
@@ -79,113 +97,143 @@ const SessionsListPage = () => {
 
     return (
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+               {" "}
         <div className="p-6">
+                   {" "}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                       {" "}
             <div>
+                           {" "}
               <h4 className="text-lg font-bold text-gray-800 dark:text-gray-100">
-                {sessionTitle}
+                                {sessionTitle}             {" "}
               </h4>
+                           {" "}
               <p className="text-sm text-gray-500 dark:text-gray-400">
+                               {" "}
                 {sessionDate.toLocaleString([], {
                   dateStyle: "full",
                   timeStyle: "short",
                 })}
+                             {" "}
               </p>
+                         {" "}
             </div>
+                       {" "}
             <div className="mt-4 sm:mt-0 flex items-center gap-4">
+                           {" "}
               {activeTab === "past" && (
                 <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">
-                  Completed
+                                    Completed                {" "}
                 </span>
               )}
+                           {" "}
               {activeTab === "upcoming" && (
                 <>
+                                   {" "}
                   <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-200">
-                    Upcoming
+                                        Upcoming                  {" "}
                   </span>
+                                   {" "}
                   <Link
                     to={`/session/${session.id}/call`}
                     className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
                   >
-                    Join Session
+                                        Join Session                  {" "}
                   </Link>
+                                 {" "}
                 </>
               )}
+                         {" "}
             </div>
+                     {" "}
           </div>
+                 {" "}
         </div>
-
-        {/* --- [MODIFIED] UNIFIED FOOTER FOR PAST SESSIONS --- */}
+                {/* --- [MODIFIED] UNIFIED FOOTER FOR PAST SESSIONS --- */}     
+         {" "}
         {activeTab === "past" && (
           <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 flex justify-end items-center gap-4">
-            {/* View Insights Button */}
+                        {/* View Insights Button */}           {" "}
             <Link
               to={`/session/${session.id}/insights`}
               className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
             >
-              View AI Insights
+                            View AI Insights            {" "}
             </Link>
-
-            {/* Conditional Feedback Button/Message */}
+                        {/* Conditional Feedback Button/Message */}           {" "}
             {!hasFeedback && user?.role !== "ADMIN" ? (
               <button
                 onClick={() => handleOpenFeedbackModal(session)}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
               >
-                Add Feedback
+                                Add Feedback              {" "}
               </button>
             ) : (
               <p className="text-xs text-green-600 dark:text-green-400 italic">
-                Feedback submitted.
+                                Feedback submitted.              {" "}
               </p>
             )}
+                     {" "}
           </div>
         )}
+             {" "}
       </div>
     );
   };
 
   const EmptyState = ({ tab }: { tab: "upcoming" | "past" }) => (
     <div className="text-center py-16 px-6 bg-white/70 dark:bg-gray-800/50 backdrop-blur-sm rounded-lg shadow-md">
+           {" "}
       <div className="inline-block p-4 bg-indigo-100 dark:bg-indigo-900/50 rounded-full mb-4">
+               {" "}
         <svg
           className="h-12 w-12 text-indigo-500 dark:text-indigo-400"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
         >
+                   {" "}
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth="2"
             d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
           />
+                 {" "}
         </svg>
+             {" "}
       </div>
+           {" "}
       <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
-        No {tab} sessions
+                No {tab} sessions      {" "}
       </h3>
+           {" "}
       <p className="text-gray-500 dark:text-gray-400 mt-2 mb-6">
+               {" "}
         {tab === "upcoming"
           ? "You don't have any sessions scheduled."
           : "You haven't completed any sessions yet."}
+             {" "}
       </p>
+           {" "}
       {tab === "upcoming" && user?.role === "MENTEE" && (
         <Link
           to="/mentors"
           className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
         >
-          Find a Mentor to Book a Session
+                    Find a Mentor to Book a Session        {" "}
         </Link>
       )}
+           {" "}
       {tab === "upcoming" && user?.role === "MENTOR" && (
         <Link
           to="/availability"
           className="px-6 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-colors"
         >
-          Set Your Availability
+                    Set Your Availability        {" "}
         </Link>
       )}
+         {" "}
     </div>
   );
 
@@ -206,7 +254,7 @@ const SessionsListPage = () => {
           : "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700"
       }`}
     >
-      {label}{" "}
+            {label}      {" "}
       <span
         className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
           activeTab === tabName
@@ -214,15 +262,16 @@ const SessionsListPage = () => {
             : "bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200"
         }`}
       >
-        {count}
+                {count}     {" "}
       </span>
+         {" "}
     </button>
   );
 
   if (isLoading)
     return (
       <p className="text-center text-gray-500 dark:text-gray-400">
-        Loading your sessions...
+                Loading your sessions...      {" "}
       </p>
     );
 
@@ -230,26 +279,37 @@ const SessionsListPage = () => {
 
   return (
     <div className="py-8 min-h-screen">
+           {" "}
       <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+               {" "}
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">
-          {user?.role === "ADMIN" ? "All Platform Sessions" : "My Sessions"}
+                   {" "}
+          {user?.role === "ADMIN" ? "All Platform Sessions" : "My Sessions"}   
+             {" "}
         </h1>
+               {" "}
         <div className="mb-6 border-b border-gray-200 dark:border-gray-700">
+                   {" "}
           <div className="flex justify-center space-x-4">
+                       {" "}
             <TabButton
               tabName="upcoming"
               label="Upcoming"
               count={upcomingSessions.length}
             />
+                       {" "}
             <TabButton
               tabName="past"
               label="Past"
               count={pastSessions.length}
             />
+                     {" "}
           </div>
+                 {" "}
         </div>
-
+               {" "}
         <div className="space-y-6">
+                   {" "}
           {activeTab === "upcoming" &&
             (upcomingSessions.length > 0 ? (
               upcomingSessions.map((session) => (
@@ -258,6 +318,7 @@ const SessionsListPage = () => {
             ) : (
               <EmptyState tab="upcoming" />
             ))}
+                   {" "}
           {activeTab === "past" &&
             (pastSessions.length > 0 ? (
               pastSessions.map((session) => (
@@ -266,9 +327,11 @@ const SessionsListPage = () => {
             ) : (
               <EmptyState tab="past" />
             ))}
+                 {" "}
         </div>
+             {" "}
       </div>
-
+           {" "}
       {isModalOpen && selectedSession && (
         <FeedbackModal
           session={selectedSession}
@@ -276,6 +339,7 @@ const SessionsListPage = () => {
           onFeedbackSubmitted={handleFeedbackSubmitted}
         />
       )}
+         {" "}
     </div>
   );
 };
