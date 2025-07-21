@@ -154,6 +154,14 @@ function App() {
             }
           />
           <Route
+            path="/my-sessions"
+            element={
+              <ProtectedRoute>
+                <SessionsListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/session/:sessionId/call"
             element={
               <ProtectedRoute>

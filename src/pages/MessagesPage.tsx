@@ -5,7 +5,6 @@ import { useAuth } from "../contexts/AuthContext";
 import io, { Socket } from "socket.io-client";
 import toast from "react-hot-toast";
 import moment from "moment";
-import { formatLastSeen } from "../utils/timeFormat";
 
 // --- Reusable SVG Icons for UI ---
 const SearchIcon = () => (
@@ -49,7 +48,7 @@ const CheckmarkIcon = () => (
 
 const ChatBubbleIcon = () => (
   <svg
-    className="w-24 h-24 text-gray-300 dark:text-gray-600"
+    className="w-24 h-24 text-gray-300 dark:text-gray-600 mb-4"
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"
@@ -73,6 +72,21 @@ const BackIcon = () => (
   </svg>
 );
 
+// --- [NEW] Skeleton Loader for a better loading experience ---
+const ConversationSkeletonLoader = () => (
+  <div className="p-4 space-y-3 animate-pulse">
+    {[...Array(5)].map((_, i) => (
+      <div key={i} className="flex items-center space-x-4">
+        <div className="h-12 w-12 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+        <div className="flex-1 space-y-2">
+          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
 // Define a type for messages for better type safety
 interface Message {
   id: string;
@@ -88,6 +102,8 @@ interface Message {
   };
   isOptimistic?: boolean;
   conversationId: string;
+  // --- [NEW] Add a temporary ID for robust optimistic updates ---
+  tempId?: string;
 }
 
 interface UserStatus {
@@ -112,9 +128,15 @@ const MessagesPage = () => {
   const [lastSeenTimes, setLastSeenTimes] = useState<
     Map<string, string | null>
   >(new Map());
+  const [isSending, setIsSending] = useState(false);
+  // --- [NEW] State to track if the other user is typing ---
+  const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // --- [NEW] Ref for the audio context to play sounds ---
+  const audioContextRef = useRef<AudioContext | null>(null);
 
   const getOtherParticipant = (conversation: any) => {
     if (!conversation?.participants || !user) return null;
@@ -136,7 +158,7 @@ const MessagesPage = () => {
   };
 
   const formatLastSeen = useCallback((timestamp: string | null): string => {
-    if (!timestamp) return "";
+    if (!timestamp) return "Offline";
     const now = moment();
     const lastSeenMoment = moment(timestamp);
     if (now.diff(lastSeenMoment, "minutes") < 1) {
@@ -152,6 +174,30 @@ const MessagesPage = () => {
     }
   }, []);
 
+  // --- [NEW] Function to play a notification sound ---
+  const playNotificationSound = () => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext ||
+        (window as any).webkitAudioContext)();
+    }
+    const oscillator = audioContextRef.current.createOscillator();
+    const gainNode = audioContextRef.current.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContextRef.current.destination);
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(
+      600,
+      audioContextRef.current.currentTime
+    );
+    gainNode.gain.setValueAtTime(0.1, audioContextRef.current.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(
+      0.00001,
+      audioContextRef.current.currentTime + 0.5
+    );
+    oscillator.start();
+    oscillator.stop(audioContextRef.current.currentTime + 0.5);
+  };
+
   const handleSelectConversation = useCallback(
     async (conversation: any) => {
       if (selectedConversation?.id === conversation.id) return;
@@ -166,6 +212,7 @@ const MessagesPage = () => {
         socketRef.current?.emit("joinConversation", conversation.id);
       } catch (error) {
         console.error("Failed to fetch messages:", error);
+        toast.error("Could not load messages for this conversation.");
         setMessages([]);
       }
     },
@@ -185,6 +232,7 @@ const MessagesPage = () => {
         setConversations(sortedConversations);
       } catch (error) {
         console.error("Failed to fetch conversations:", error);
+        toast.error("Failed to load your conversations.");
       } finally {
         setIsLoading(false);
       }
@@ -192,7 +240,6 @@ const MessagesPage = () => {
     fetchConversations();
   }, [user?.id]);
 
-  // FIX: This useEffect handles selecting a conversation from the URL on page load/refresh.
   useEffect(() => {
     if (conversationId && conversations.length > 0 && !selectedConversation) {
       const convoToSelect = conversations.find((c) => c.id === conversationId);
@@ -215,11 +262,33 @@ const MessagesPage = () => {
     });
 
     socketRef.current.on("receiveMessage", (message: Message) => {
-      if (message.conversationId === selectedConversation?.id) {
-        setMessages((prevMessages) => [...prevMessages, message]);
+      // --- [UPDATED] More robust message receiving logic ---
+      setMessages((prevMessages) => {
+        // Replace optimistic message with the real one from the server
+        const existingIndex = message.tempId
+          ? prevMessages.findIndex((m) => m.id === message.tempId)
+          : -1;
+        if (existingIndex !== -1) {
+          const newMessages = [...prevMessages];
+          newMessages[existingIndex] = message;
+          return newMessages;
+        }
+        // Add new message if it's not a replacement
+        if (message.conversationId === selectedConversation?.id) {
+          return [...prevMessages, message];
+        }
+        return prevMessages;
+      });
+
+      if (message.senderId !== user?.id) {
+        playNotificationSound();
+        if (message.conversationId !== selectedConversation?.id) {
+          toast.success(`New message from ${message.sender.profile?.name}`, {
+            icon: "💬",
+          });
+        }
       }
 
-      // FIX: This logic correctly updates the conversation list with the new last message.
       setConversations((prevConvos) => {
         const newConvos = [...prevConvos];
         const convoIndex = newConvos.findIndex(
@@ -229,7 +298,7 @@ const MessagesPage = () => {
         if (convoIndex > -1) {
           const updatedConvo = {
             ...newConvos[convoIndex],
-            messages: [message], // This ensures the 'messages' array has the latest message for the preview.
+            messages: [message],
             updatedAt: message.createdAt,
           };
           newConvos.splice(convoIndex, 1);
@@ -239,21 +308,25 @@ const MessagesPage = () => {
       });
     });
 
+    // --- [NEW] Listen for typing events ---
+    socketRef.current.on("userTyping", ({ conversationId, isTyping }) => {
+      if (conversationId === selectedConversation?.id) {
+        setIsOtherUserTyping(isTyping);
+      }
+    });
+
     socketRef.current.on("userStatusChange", (statusChange: UserStatus) => {
-      setUserStatuses((prev) => {
-        const newMap = new Map(prev);
-        newMap.set(statusChange.userId, statusChange.isOnline);
-        return newMap;
-      });
-      setLastSeenTimes((prev) => {
-        const newMap = new Map(prev);
-        newMap.set(statusChange.userId, statusChange.lastSeen);
-        return newMap;
-      });
+      setUserStatuses((prev) =>
+        new Map(prev).set(statusChange.userId, statusChange.isOnline)
+      );
+      setLastSeenTimes((prev) =>
+        new Map(prev).set(statusChange.userId, statusChange.lastSeen)
+      );
     });
 
     socketRef.current.on("messageError", (error: any) => {
       console.error("Message send error from server:", error);
+      toast.error(error.message || "Failed to send message.");
       setMessages((prevMessages) =>
         prevMessages.filter((msg) => !msg.isOptimistic)
       );
@@ -262,7 +335,7 @@ const MessagesPage = () => {
     return () => {
       socketRef.current?.disconnect();
     };
-  }, [token, selectedConversation?.id]);
+  }, [token, selectedConversation?.id, user?.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -274,31 +347,72 @@ const MessagesPage = () => {
       !newMessage.trim() ||
       !selectedConversation ||
       !socketRef.current ||
-      !user
+      !user ||
+      isSending
     ) {
       return;
     }
 
+    setIsSending(true);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    socketRef.current.emit("stopTyping", {
+      conversationId: selectedConversation.id,
+    });
+
+    const tempId = `optimistic-${Date.now()}`;
     const optimisticMessage: Message = {
-      id: `optimistic-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: tempId,
+      tempId: tempId,
       content: newMessage,
       senderId: user.id,
       createdAt: new Date().toISOString(),
-      sender: {
-        id: user.id,
-        profile: user.profile,
-      },
+      sender: { id: user.id, profile: user.profile },
       isOptimistic: true,
       conversationId: selectedConversation.id,
     };
     setMessages((prevMessages) => [...prevMessages, optimisticMessage]);
 
-    socketRef.current.emit("sendMessage", {
-      conversationId: selectedConversation.id,
-      content: newMessage,
-    });
+    socketRef.current.emit(
+      "sendMessage",
+      {
+        conversationId: selectedConversation.id,
+        content: newMessage,
+        tempId: tempId, // Send tempId to be echoed back
+      },
+      (ack: { success: boolean; error?: string }) => {
+        if (!ack.success) {
+          toast.error(ack.error || "Message could not be sent.");
+          setMessages((prev) =>
+            prev.filter((msg) => msg.id !== optimisticMessage.id)
+          );
+        }
+        setIsSending(false);
+      }
+    );
 
     setNewMessage("");
+  };
+
+  // --- [NEW] Handle typing event emission ---
+  const handleTyping = (text: string) => {
+    setNewMessage(text);
+    if (!socketRef.current || !selectedConversation) return;
+
+    if (!isSending) {
+      socketRef.current.emit("startTyping", {
+        conversationId: selectedConversation.id,
+      });
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      socketRef.current?.emit("stopTyping", {
+        conversationId: selectedConversation.id,
+      });
+    }, 2000); // Consider typing stopped after 2 seconds of inactivity
   };
 
   const filteredConversations = conversations.filter((convo) => {
@@ -356,12 +470,11 @@ const MessagesPage = () => {
           </div>
           <div className="flex-grow overflow-y-auto">
             {isLoading ? (
-              <p className="text-center p-4 text-gray-500">Loading...</p>
+              <ConversationSkeletonLoader />
             ) : filteredConversations.length > 0 ? (
               filteredConversations.map((convo) => {
                 const otherParticipant = getOtherParticipant(convo);
                 if (!otherParticipant || !otherParticipant.profile) return null;
-                // FIX: This now correctly reads the last message from the 'messages' array in the conversation object.
                 const lastMessage = convo.messages && convo.messages[0];
                 return (
                   <div
@@ -396,25 +509,27 @@ const MessagesPage = () => {
                 );
               })
             ) : (
-              <div className="text-center p-8 text-gray-500 dark:text-gray-400">
-                <p>No conversations yet.</p>
-                <p className="text-sm mt-2">
-                  You'll see your chats appear here once your mentorship request
-                  is accepted.
+              <div className="flex flex-col items-center justify-center h-full text-center p-8 text-gray-500 dark:text-gray-400">
+                <ChatBubbleIcon />
+                <h3 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                  No conversations yet.
+                </h3>
+                <p className="text-sm mt-1 max-w-xs">
+                  Your chats will appear here once a mentorship request is
+                  accepted.
                 </p>
                 {user?.role === "MENTEE" && (
-                  <p className="text-sm mt-2">
-                    <Link
-                      to="/mentors"
-                      className="text-blue-500 hover:underline"
-                    >
-                      Find a mentor
-                    </Link>{" "}
-                    to get started!
-                  </p>
+                  <Link
+                    to="/mentors"
+                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                  >
+                    Find a Mentor
+                  </Link>
                 )}
                 {user?.role === "MENTOR" && (
-                  <p className="text-sm mt-2">Find a mentee to get started!</p>
+                  <p className="text-sm mt-2">
+                    Check your requests to get started!
+                  </p>
                 )}
               </div>
             )}
@@ -422,7 +537,7 @@ const MessagesPage = () => {
         </div>
 
         <div
-          className={`w-full md:w-2/3 flex flex-col absolute md:static top-0 right-0 h-full bg-white dark:bg-gray-800 transition-transform duration-300 ease-in-out z-10 ${
+          className={`w-full md:w-2/3 flex flex-col absolute md:static top-0 right-0 h-full bg-gray-50 dark:bg-gray-900 transition-transform duration-300 ease-in-out z-10 ${
             selectedConversation
               ? "translate-x-0"
               : "translate-x-full md:translate-x-0"
@@ -430,7 +545,7 @@ const MessagesPage = () => {
         >
           {selectedConversation ? (
             <>
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center flex-shrink-0">
+              <div className="p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center flex-shrink-0">
                 <button
                   onClick={() => setSelectedConversation(null)}
                   className="p-1 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 md:hidden mr-2"
@@ -462,28 +577,36 @@ const MessagesPage = () => {
                             ?.name
                         }
                       </h3>
-                      <div className="text-sm">
-                        {getOtherParticipant(selectedConversation)?.id &&
+                      <div className="text-sm h-4">
+                        {/* --- [NEW] Display typing indicator or online status --- */}
+                        {isOtherUserTyping ? (
+                          <span className="text-blue-500 italic">
+                            typing...
+                          </span>
+                        ) : (
+                          getOtherParticipant(selectedConversation)?.id &&
                           getParticipantStatus(
                             getOtherParticipant(selectedConversation).id
-                          )}
+                          )
+                        )}
                       </div>
                     </div>
                   </Link>
                 )}
               </div>
 
-              <div className="flex-grow p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900">
+              <div className="flex-grow p-6 overflow-y-auto">
                 <div className="space-y-2">
                   {messages.length === 0 && !isLoading ? (
-                    <div className="text-center text-gray-500">
-                      No messages yet. Start a conversation!
+                    <div className="text-center text-gray-500 py-10">
+                      No messages yet. Start the conversation!
                     </div>
                   ) : (
                     messages.map((msg, index) => (
                       <div
                         key={msg.id || index}
-                        className={`flex items-end gap-3 ${
+                        className={`flex items-end gap-3 animate-fade-in-up ${
+                          // --- [NEW] Animation class ---
                           msg.senderId === user?.id
                             ? "justify-end"
                             : "justify-start"
@@ -534,14 +657,16 @@ const MessagesPage = () => {
                   <input
                     type="text"
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
+                    onChange={(e) => handleTyping(e.target.value)}
                     placeholder="Type a message..."
                     className="flex-grow px-4 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isSending}
                   />
                   <button
                     type="submit"
-                    className="bg-blue-600 text-white rounded-full p-3 hover:bg-blue-700 transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="bg-blue-600 text-white rounded-full p-3 hover:bg-blue-700 transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed"
                     aria-label="Send message"
+                    disabled={isSending}
                   >
                     <SendIcon />
                   </button>
@@ -549,26 +674,27 @@ const MessagesPage = () => {
               </div>
             </>
           ) : (
-            // FIX: This now correctly displays role-specific messages.
-            <div className="hidden md:flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400">
+            <div className="hidden md:flex flex-col items-center justify-center h-full text-center text-gray-500 dark:text-gray-400 p-8">
               <ChatBubbleIcon />
-              <h3 className="text-xl font-semibold mt-4">
+              <h3 className="text-xl font-semibold mt-4 text-gray-700 dark:text-gray-300">
                 Select a conversation
               </h3>
-              <p>
-                You'll see your chats appear here once your mentorship request
-                is accepted.
+              <p className="max-w-xs">
+                Your chats will appear here once a mentorship request is
+                accepted.
               </p>
               {user?.role === "MENTEE" && (
-                <p className="text-sm mt-2">
-                  <Link to="/mentors" className="text-blue-500 hover:underline">
-                    Find a mentor
-                  </Link>{" "}
-                  to get started!
-                </p>
+                <Link
+                  to="/mentors"
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                >
+                  Find a Mentor
+                </Link>
               )}
               {user?.role === "MENTOR" && (
-                <p className="text-sm mt-2">Find a mentee to get started!</p>
+                <p className="text-sm mt-2">
+                  Check your requests to get started!
+                </p>
               )}
             </div>
           )}
