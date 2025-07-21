@@ -2,10 +2,16 @@
 .video-call-container {
   display: flex;
   flex-direction: column;
-  padding: 1.5rem;
+  padding: 1rem; /* Reduced padding for mobile */
   background-color: #f8f9fa;
   min-height: 100vh;
   font-family: "Inter", sans-serif;
+}
+
+@media (min-width: 768px) {
+  .video-call-container {
+    padding: 1.5rem; /* Original padding for larger screens */
+  }
 }
 
 .video-call-header {
@@ -17,16 +23,19 @@
   color: #4a5568;
   margin-bottom: 1.5rem;
   min-height: 24px;
+  text-align: center;
 }
 
-/* --- Main Video Area --- */
 .video-main-area {
-  flex-grow: 1;
-  display: flex;
+  width: 100%;
+  max-width: 900px;
+  margin: 1rem auto;
+  aspect-ratio: 16 / 9;
   position: relative;
+  border-radius: 0.75rem;
   overflow: hidden;
-  border-radius: 1rem;
-  background-color: #1a202c; /* Dark background for the video area */
+  border: 3px solid #d1d5db;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 /* --- Layouts --- */
@@ -47,29 +56,56 @@
   object-fit: cover;
 }
 
-/* Split Screen (After Connection) */
+/* --- [MODIFIED] Responsive Split Screen --- */
 .split-screen-view {
-  display: grid;
   width: 100%;
   height: 100%;
-  gap: 1rem;
-  padding: 1rem;
-  grid-template-rows: 3fr 1fr; /* Mobile default: stacked */
-  grid-template-columns: 1fr;
+  position: relative; /* Changed from display:grid for better control */
 }
 
+.remote-video-container {
+  width: 100%;
+  height: 100%;
+  background-color: #000;
+}
+
+/* Mobile-First: Picture-in-Picture style */
+.local-video-container {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  width: 30%; /* Smaller on mobile */
+  max-width: 150px; /* Cap the max size on mobile */
+  aspect-ratio: 9 / 16;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  touch-action: none; /* Allows for dragging on touch devices */
+  z-index: 10;
+}
+
+/* Desktop: Side-by-side layout */
 @media (min-width: 768px) {
   .split-screen-view {
-    grid-template-columns: 3fr 1fr; /* Desktop: side-by-side */
-    grid-template-rows: 1fr;
+    display: flex;
   }
-}
-
-.remote-video-container,
-.local-video-container {
-  border-radius: 0.75rem;
-  overflow: hidden;
-  background-color: #000;
+  .remote-video-container {
+    flex: 3; /* Takes up 75% of the width */
+    height: 100%;
+  }
+  .local-video-container {
+    position: relative; /* Resets absolute positioning */
+    bottom: auto;
+    right: auto;
+    flex: 1; /* Takes up 25% of the width */
+    height: 100%;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    aspect-ratio: auto;
+    max-width: none;
+  }
 }
 
 .video-element {
@@ -78,23 +114,24 @@
   object-fit: cover;
 }
 
-
 /* --- UI Controls --- */
 .control-bar {
   display: flex;
+  flex-wrap: wrap; /* Allows buttons to wrap on smaller screens */
   justify-content: center;
-  gap: 1rem;
+  gap: 0.75rem; /* Slightly reduced gap */
   padding-top: 1.5rem;
 }
 
 .control-button {
-  padding: 0.75rem 1.5rem;
+  padding: 0.75rem 1rem; /* Slightly smaller padding */
   color: white;
   border: none;
   border-radius: 0.5rem;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
+  flex-shrink: 0; /* Prevents buttons from shrinking too much */
 }
 
 .control-button.active {
@@ -107,7 +144,7 @@
 
 /* --- Dark Mode Styles --- */
 .video-call-container.dark {
-  background-color: #111827; /* Darker background for the page */
+  background-color: #111827;
 }
 
 .video-call-container.dark .video-call-header,
@@ -116,5 +153,39 @@
 }
 
 .video-call-container.dark .video-main-area {
-  background-color: #000; /* Pitch black for the video background */
+  background-color: #000;
+}
+
+/* --- Status Glow Styles --- */
+.video-call-status.status-info {
+  color: #6b7280;
+}
+.video-main-area.status-info {
+  border-color: #d1d5db;
+}
+
+.video-call-status.status-connecting {
+  color: #f59e0b;
+}
+.video-main-area.status-connecting {
+  border-color: #f59e0b;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.4);
+}
+
+.video-call-status.status-success {
+  color: #22c55e;
+  font-weight: 600;
+}
+.video-main-area.status-success {
+  border-color: #22c55e;
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.5);
+}
+
+.video-call-status.status-error {
+  color: #ef4444;
+  font-weight: 600;
+}
+.video-main-area.status-error {
+  border-color: #ef4444;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.5);
 }

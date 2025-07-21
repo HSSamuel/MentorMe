@@ -19,6 +19,24 @@ const CloseIcon = () => (
     />
   </svg>
 );
+
+const CheckmarkIcon = () => (
+  <svg
+    className="w-3.5 h-3.5 text-white"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="3"
+      d="M5 13l4 4L19 7"
+    ></path>
+  </svg>
+);
+
 const HelpIcon = () => (
   <svg
     className="w-5 h-5"
@@ -175,6 +193,8 @@ const suggestionChips = [
   "Help me set a S.M.A.R.T. goal",
   "How to prepare for an interview?",
   "What are some good resume tips?",
+  "I have a session coming up soon, can you help me prepare?",
+  "Can you remind me what my goals are?",
 ];
 
 interface Message {
@@ -212,6 +232,7 @@ const AIChatAssistant = () => {
   });
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [isFileUploaded, setIsFileUploaded] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -287,6 +308,7 @@ const AIChatAssistant = () => {
 
     setInput("");
     setIsLoading(true);
+    setIsFileUploaded(false);
 
     try {
       let response;
@@ -343,6 +365,7 @@ const AIChatAssistant = () => {
     const file = e.target.files?.[0];
     if (file) {
       setAttachedFile(file);
+      setIsFileUploaded(true);
       if (file.type.startsWith("image/")) {
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -627,10 +650,12 @@ const AIChatAssistant = () => {
                       onClick={() => {
                         setAttachedFile(null);
                         setFilePreview(null);
+                        setIsFileUploaded(false);
                       }}
-                      className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                      className={`absolute top-0 right-0 rounded-full w-5 h-5 flex items-center justify-center text-xs
+                        ${isFileUploaded ? "bg-green-500" : "bg-red-500"}`}
                     >
-                      &times;
+                      {isFileUploaded ? <CheckmarkIcon /> : "×"}
                     </button>
                   </div>
                 )}

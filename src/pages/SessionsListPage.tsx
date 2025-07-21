@@ -114,21 +114,31 @@ const SessionsListPage = () => {
             </div>
           </div>
         </div>
-        {activeTab === "past" && !hasFeedback && user?.role !== "ADMIN" && (
-          <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 flex justify-end">
-            <button
-              onClick={() => handleOpenFeedbackModal(session)}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+
+        {/* --- [MODIFIED] UNIFIED FOOTER FOR PAST SESSIONS --- */}
+        {activeTab === "past" && (
+          <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 flex justify-end items-center gap-4">
+            {/* View Insights Button */}
+            <Link
+              to={`/session/${session.id}/insights`}
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
             >
-              Add Feedback
-            </button>
-          </div>
-        )}
-        {activeTab === "past" && hasFeedback && (
-          <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3">
-            <p className="text-xs text-green-600 dark:text-green-400 italic text-right">
-              Feedback submitted. Thank you!
-            </p>
+              View AI Insights
+            </Link>
+
+            {/* Conditional Feedback Button/Message */}
+            {!hasFeedback && user?.role !== "ADMIN" ? (
+              <button
+                onClick={() => handleOpenFeedbackModal(session)}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Add Feedback
+              </button>
+            ) : (
+              <p className="text-xs text-green-600 dark:text-green-400 italic">
+                Feedback submitted.
+              </p>
+            )}
           </div>
         )}
       </div>

@@ -25,7 +25,6 @@ const AdminMatchesPage = React.lazy(() => import("./pages/AdminMatchesPage"));
 const AdminSessionsPage = React.lazy(() => import("./pages/AdminSessionsPage"));
 const DashboardPage = React.lazy(() => import("./pages/DashboardPage"));
 const MessagesPage = React.lazy(() => import("./pages/MessagesPage"));
-// [MODIFIED]: Renamed import from MentorProfilePage to UserProfilePage
 const UserProfilePage = React.lazy(() => import("./pages/MentorProfilePage"));
 const AuthCallbackPage = React.lazy(() => import("./pages/AuthCallbackPage"));
 const ForgotPasswordPage = React.lazy(
@@ -34,6 +33,10 @@ const ForgotPasswordPage = React.lazy(
 const VideoCallPage = React.lazy(() => import("./pages/VideoCallPage"));
 const ResetPasswordPage = React.lazy(() => import("./pages/ResetPasswordPage"));
 const GoalsPage = React.lazy(() => import("./pages/GoalsPage"));
+// 1. LAZILY IMPORT THE NEW SESSION INSIGHTS PAGE
+const SessionInsightsPage = React.lazy(
+  () => import("./pages/SessionInsightsPage")
+);
 
 function App() {
   return (
@@ -52,11 +55,9 @@ function App() {
 
           {/* Main Application Routes */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          {/* [MODIFIED]: Route for generic user profile page */}
           <Route path="/users/:id" element={<UserProfilePage />} />
 
           {/* Protected Routes */}
-          {/* FIX: Add the new route for the mentor profile page to match the URL */}
           <Route
             path="/mentor/:id"
             element={
@@ -150,6 +151,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <VideoCallPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* 2. ADD THE NEW ROUTE FOR THE INSIGHTS PAGE */}
+          <Route
+            path="/session/:sessionId/insights"
+            element={
+              <ProtectedRoute>
+                <SessionInsightsPage />
               </ProtectedRoute>
             }
           />

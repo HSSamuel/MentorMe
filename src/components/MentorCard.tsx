@@ -5,36 +5,47 @@ import apiClient from "../api/axios";
 // Define the structure of the mentor object
 interface Mentor {
   id: string;
-  profile: {
+  // The profile is now optional to prevent crashes if it's missing from the API response
+  profile?: {
     name: string;
-    bio: string | null; // Allow the bio to be null
+    bio: string | null;
     skills: string[];
     avatarUrl?: string;
   };
 }
 
 const MentorCard = ({ mentor }: { mentor: Mentor }) => {
-  // Function to construct the avatar URL
+  // If for any reason a mentor object is missing or has no profile, render nothing.
+  // This is the ultimate safeguard against crashing the page.
+  if (!mentor?.profile) {
+    return null;
+  }
+
+  // Function to construct the avatar URL, now safer with optional chaining
   const getAvatarUrl = () => {
-    if (!mentor.profile?.avatarUrl) {
-      return `https://ui-avatars.com/api/?name=${
-        mentor.profile?.name || "Mentor"
-      }&background=random&color=fff`;
+    // Use mentor.profile?.name as a fallback
+    const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      mentor.profile?.name || "M"
+    )}&background=random&color=fff`;
+
+    const url = mentor.profile?.avatarUrl;
+    if (!url) {
+      return defaultAvatar;
     }
-    const url = mentor.profile.avatarUrl;
-    // Check if the URL is absolute or needs the base URL
+
     if (url.startsWith("http")) {
       return url;
     }
-    // Construct the full URL if it's a relative path
     return `${apiClient.defaults.baseURL}${url}`.replace("/api", "");
   };
 
-  // --- THIS IS THE FIX ---
   // Safely shorten the bio, providing a fallback if it's missing.
   const shortBio = mentor.profile.bio
     ? `${mentor.profile.bio.substring(0, 100)}...`
     : "No bio has been provided yet.";
+
+  // Safely access the mentor's name
+  const mentorName = mentor.profile.name || "Unnamed Mentor";
 
   return (
     <div className="group relative block h-full bg-white dark:bg-gray-800 before:absolute before:inset-0 before:rounded-xl before:border-2 before:border-dashed before:border-gray-900 dark:before:border-gray-100">
@@ -43,23 +54,23 @@ const MentorCard = ({ mentor }: { mentor: Mentor }) => {
           {/* Avatar */}
           <img
             src={getAvatarUrl()}
-            alt={mentor.profile.name}
+            alt={mentorName} // Use safe variable
             className="h-24 w-24 rounded-full object-cover shadow-lg mb-4 ring-4 ring-white dark:ring-gray-700"
           />
           {/* Mentor Name */}
           <h5 className="text-xl font-bold text-gray-900 dark:text-white">
-            {mentor.profile.name}
+            {mentorName} {/* Use safe variable */}
           </h5>
           {/* Mentor Bio */}
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-            {/* Use the safe shortBio variable here */}
             {shortBio}
           </p>
         </div>
 
         {/* Skills */}
         <div className="mt-4 flex flex-wrap justify-center gap-2">
-          {mentor.profile.skills.slice(0, 3).map((skill) => (
+          {/* Use optional chaining on skills as well */}
+          {(mentor.profile.skills || []).slice(0, 3).map((skill) => (
             <span
               key={skill}
               className="inline-block rounded-full bg-white/70 dark:bg-gray-700/50 px-3 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200"
