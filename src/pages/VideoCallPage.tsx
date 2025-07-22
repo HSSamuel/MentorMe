@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import { useParams } from "react-router-dom";
-import Video, { LocalVideoTrack, Room } from "twilio-video";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import Video, { LocalVideoTrack, Room, RemoteAudioTrack } from "twilio-video";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import axios from "../api/axios";
 import "./VideoCallPage.css";
 import SharedNotepad from "../components/SharedNotepad";
+import toast from "react-hot-toast";
 
 // --- Types and Helper Components ---
 type CallStatusType = "info" | "success" | "error" | "connecting";
@@ -14,14 +15,11 @@ interface CallStatus {
   message: string;
   type: CallStatusType;
 }
-interface ChatMessage {
-  message: string;
-  senderName: string;
-  isLocal: boolean;
-}
+// --- [REMOVED] ChatMessage interface is no longer needed ---
 
 const LiveTranscript = ({ transcript }: { transcript: string }) => (
-  <div className="transcript-container">
+  // --- [UPDATED] This component is now styled to overlay at the bottom ---
+  <div className="transcript-container-overlay">
     <h3 className="transcript-header">Live Transcript</h3>
     <div className="transcript-content">
       <p>{transcript}</p>
@@ -57,6 +55,7 @@ const VideoCallPage = () => {
   const { theme } = useTheme();
   const { sessionId } = useParams<{ sessionId: string }>();
   const { token: authToken, user } = useAuth();
+  const navigate = useNavigate();
 
   // --- State Variables ---
   const [videoToken, setVideoToken] = useState<string | null>(null);
@@ -74,8 +73,7 @@ const VideoCallPage = () => {
   // --- Feature States ---
   const [isNotepadOpen, setIsNotepadOpen] = useState(false);
   const [notepadContent, setNotepadContent] = useState("");
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
+  // --- [REMOVED] Chat-related states are no longer needed ---
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoStopped, setIsVideoStopped] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -83,6 +81,8 @@ const VideoCallPage = () => {
   const [transcript, setTranscript] = useState("");
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const transcriptionSocketRef = useRef<WebSocket | null>(null);
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [insightsGenerated, setInsightsGenerated] = useState(false);
 
   // --- Core Logic ---
 
@@ -115,7 +115,6 @@ const VideoCallPage = () => {
     let videoRoom: Room | null = null;
     let dataSocket: Socket | null = null;
 
-    // --- Connect to Twilio for Video ---
     setStatus({ message: "Joining room...", type: "connecting" });
     Video.connect(videoToken, {
       name: sessionId,
@@ -130,7 +129,6 @@ const VideoCallPage = () => {
           type: "success",
         });
 
-        // Attach local video
         const localParticipant = room.localParticipant;
         localParticipant.tracks.forEach((publication) => {
           if (publication.track) {
@@ -163,7 +161,6 @@ const VideoCallPage = () => {
         })
       );
 
-    // --- Connect to our Data Socket for Chat/Notepad ---
     dataSocket = io(import.meta.env.VITE_API_BASE_URL, {
       auth: { token: authToken },
     });
@@ -173,18 +170,14 @@ const VideoCallPage = () => {
     dataSocket.on("notepad-update", (content: string) =>
       setNotepadContent(content)
     );
-    dataSocket.on(
-      "new-chat-message",
-      (message: { message: string; senderName: string; socketId: string }) => {
-        setChatMessages((prev) => [...prev, { ...message, isLocal: false }]);
-      }
-    );
+
+    // --- [REMOVED] In-call chat listener is no longer needed ---
 
     return () => {
       videoRoom?.disconnect();
       dataSocket?.disconnect();
     };
-  }, [videoToken, sessionId]);
+  }, [videoToken, sessionId, authToken, sessionStartTime]);
 
   // --- Feature Handlers ---
   const handleNotepadChange = useCallback(
@@ -198,21 +191,7 @@ const VideoCallPage = () => {
     [sessionId]
   );
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
-    const message = {
-      message: chatInput,
-      senderName: user?.profile?.name || "User",
-      isLocal: true,
-    };
-    setChatMessages((prev) => [...prev, message]);
-    dataSocketRef.current?.emit("send-chat-message", {
-      roomId: sessionId,
-      ...message,
-    });
-    setChatInput("");
-  };
+  // --- [REMOVED] handleSendMessage function is no longer needed ---
 
   const toggleAudio = () => {
     room?.localParticipant.audioTracks.forEach((pub) => {
@@ -267,13 +246,24 @@ const VideoCallPage = () => {
       mediaRecorderRef.current?.stop();
       transcriptionSocketRef.current?.close();
       setIsTranscribing(false);
+      toast.success("Transcription stopped.");
     } else {
-      if (room?.localParticipant) {
-        const localAudioTrack = Array.from(
-          room.localParticipant.audioTracks.values()
-        )[0]?.track;
-        if (localAudioTrack) {
-          const stream = new MediaStream([localAudioTrack.mediaStreamTrack]);
+      const promise = new Promise<void>((resolve, reject) => {
+        if (!room?.participants.size) {
+          return reject(
+            "Cannot start transcription without another participant."
+          );
+        }
+
+        const remoteParticipant = Array.from(room.participants.values())[0];
+        const remoteAudioTrack = Array.from(
+          remoteParticipant.audioTracks.values()
+        )[0]?.track as RemoteAudioTrack;
+
+        if (remoteAudioTrack && remoteAudioTrack.mediaStreamTrack) {
+          const stream = new MediaStream([
+            remoteAudioTrack.mediaStreamTrack.clone(),
+          ]);
           const DEEPGRAM_API_KEY = import.meta.env.VITE_DEEPGRAM_API_KEY;
           const socketUrl = `wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=16000&channels=1&punctuate=true&interim_results=true`;
 
@@ -289,6 +279,7 @@ const VideoCallPage = () => {
             mediaRecorderRef.current = mediaRecorder;
             mediaRecorder.start(250);
             setIsTranscribing(true);
+            resolve();
           };
 
           socket.onmessage = (message) => {
@@ -299,10 +290,47 @@ const VideoCallPage = () => {
             }
           };
 
+          socket.onerror = () => {
+            reject("Could not connect to transcription service.");
+          };
+
           transcriptionSocketRef.current = socket;
+        } else {
+          reject("The other participant's audio is not available.");
         }
-      }
+      });
+
+      toast.promise(promise, {
+        loading: "Starting transcription...",
+        success: "Transcription started!",
+        error: (err) => err.toString(),
+      });
     }
+  };
+
+  const handleGenerateInsights = () => {
+    if (!transcript || !sessionId) {
+      toast.error("No transcript available to generate insights.");
+      return;
+    }
+    setIsSummarizing(true);
+    const promise = axios.post("/ai/summarize", {
+      sessionId,
+      transcript,
+    });
+
+    toast.promise(promise, {
+      loading: "Generating AI insights...",
+      success: (response) => {
+        setInsightsGenerated(true);
+        setIsSummarizing(false);
+        return "Insights have been generated and saved!";
+      },
+      error: (err) => {
+        setIsSummarizing(false);
+        return err.response?.data?.message || "Failed to generate insights.";
+      },
+    });
   };
 
   const getStatusClasses = (statusType: CallStatusType) => {
@@ -328,54 +356,22 @@ const VideoCallPage = () => {
         {status.message}
       </p>
 
+      {/* --- [UPDATED] The main area now focuses only on video and overlays --- */}
       <div className={`video-main-area ${getStatusClasses(status.type)}`}>
         <div className="video-content">
           <div ref={remoteVideoRef} className="remote-video-container" />
           <div ref={localVideoRef} className="local-video-container" />
         </div>
 
-        <div className="sidebar-container">
-          <SharedNotepad
-            isOpen={isNotepadOpen}
-            onToggle={() => setIsNotepadOpen((prev) => !prev)}
-            content={notepadContent}
-            onContentChange={handleNotepadChange}
-            theme={theme}
-          />
-          <div className="chat-container">
-            <h3 className="chat-header">In-Call Chat</h3>
-            <div className="chat-messages">
-              {chatMessages.map((msg, index) => (
-                <div
-                  key={index}
-                  className={`chat-message ${msg.isLocal ? "local" : "remote"}`}
-                >
-                  <div className="chat-bubble">{msg.message}</div>
-                  <div className="chat-sender">
-                    {msg.isLocal ? "You" : msg.senderName}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <form onSubmit={handleSendMessage} className="chat-input-form">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                className="chat-input"
-                placeholder="Type a message..."
-              />
-              <button
-                type="submit"
-                className="chat-send-button"
-                disabled={!chatInput.trim()}
-              >
-                Send
-              </button>
-            </form>
-          </div>
-          {isTranscribing && <LiveTranscript transcript={transcript} />}
-        </div>
+        {/* --- [UPDATED] Notepad and Transcript are now overlays --- */}
+        <SharedNotepad
+          isOpen={isNotepadOpen}
+          onToggle={() => setIsNotepadOpen((prev) => !prev)}
+          content={notepadContent}
+          onContentChange={handleNotepadChange}
+          theme={theme}
+        />
+        {isTranscribing && <LiveTranscript transcript={transcript} />}
       </div>
 
       {room && (
@@ -402,6 +398,15 @@ const VideoCallPage = () => {
           >
             {isScreenSharing ? "Stop Sharing" : "Share Screen"}
           </button>
+          {/* --- [NEW] Button to toggle the notepad overlay --- */}
+          <button
+            onClick={() => setIsNotepadOpen((prev) => !prev)}
+            className={`control-button ${
+              isNotepadOpen ? "inactive" : "active"
+            }`}
+          >
+            {isNotepadOpen ? "Close Notepad" : "Open Notepad"}
+          </button>
           <button
             onClick={toggleTranscription}
             className={`control-button ${
@@ -410,8 +415,30 @@ const VideoCallPage = () => {
           >
             {isTranscribing ? "Stop Transcript" : "Start Transcript"}
           </button>
+
+          {!isTranscribing && transcript.length > 0 && !insightsGenerated && (
+            <button
+              onClick={handleGenerateInsights}
+              disabled={isSummarizing}
+              className="control-button active"
+            >
+              {isSummarizing ? "Generating..." : "Generate AI Insights"}
+            </button>
+          )}
+          {insightsGenerated && (
+            <Link
+              to={`/session/${sessionId}/insights`}
+              className="control-button active"
+            >
+              View Insights
+            </Link>
+          )}
+
           <button
-            onClick={() => room.disconnect()}
+            onClick={() => {
+              room.disconnect();
+              navigate("/my-sessions");
+            }}
             className="control-button inactive"
           >
             Leave Session
