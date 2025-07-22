@@ -46,6 +46,21 @@ const MyRequestsPage = () => {
     fetchRequests();
   }, []);
 
+  // --- [ADDED] Helper function to get avatar URL with a fallback ---
+  const getAvatarUrl = (profile: any) => {
+    if (profile?.avatarUrl) {
+      return profile.avatarUrl.startsWith("http")
+        ? profile.avatarUrl
+        : `${apiClient.defaults.baseURL}${profile.avatarUrl}`.replace(
+            "/api",
+            ""
+          );
+    }
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      profile?.name || "User"
+    )}&background=random&color=fff`;
+  };
+
   if (isLoading) {
     return (
       <p className="text-center text-gray-500">Loading your requests...</p>
@@ -65,13 +80,23 @@ const MyRequestsPage = () => {
                 key={req.id}
                 className="p-6 bg-white/70 dark:bg-gray-800/70 rounded-lg shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
               >
-                <div className="mb-4 sm:mb-0">
-                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Mentor: {req.mentor.profile.name}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Requested on: {new Date(req.createdAt).toLocaleDateString()}
-                  </p>
+                {/* --- [MODIFIED] Wrapped info in a flex container to align avatar --- */}
+                <div className="flex items-center mb-4 sm:mb-0">
+                  {/* --- [ADDED] Mentor's profile avatar --- */}
+                  <img
+                    src={getAvatarUrl(req.mentor.profile)}
+                    alt={`Avatar of ${req.mentor.profile.name}`}
+                    className="w-12 h-12 rounded-full object-cover mr-4"
+                  />
+                  <div>
+                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {req.mentor.profile.name}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      Requested on:{" "}
+                      {new Date(req.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <StatusBadge status={req.status} />

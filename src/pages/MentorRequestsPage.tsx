@@ -66,8 +66,6 @@ const MentorRequestsPage = () => {
     fetchPageData();
   }, [user]);
 
-  // FIX: Replaced the update logic with toast.promise for a better user experience.
-  // This provides non-blocking feedback for loading, success, and error states.
   const handleUpdateRequest = async (
     requestId: string,
     status: "ACCEPTED" | "REJECTED"
@@ -112,6 +110,20 @@ const MentorRequestsPage = () => {
     )}&background=random&color=fff`;
   };
 
+  // --- [ADDED] Helper to determine card accent color based on status ---
+  const getCardAccentColor = (status: string) => {
+    switch (status) {
+      case "PENDING":
+        return "border-l-4 border-yellow-400";
+      case "ACCEPTED":
+        return "border-l-4 border-green-400";
+      case "REJECTED":
+        return "border-l-4 border-red-400";
+      default:
+        return "border-l-4 border-gray-400";
+    }
+  };
+
   if (isLoading)
     return (
       <p className="text-center text-gray-500 py-10">
@@ -131,44 +143,50 @@ const MentorRequestsPage = () => {
             {requests.map((req) => (
               <div
                 key={req.id}
-                // FIX: Enhanced card styling for better depth and a subtle hover effect.
-                className="bg-white dark:bg-gray-800/50 dark:border dark:border-gray-700/50 rounded-xl shadow-lg overflow-hidden transition-shadow hover:shadow-xl"
+                // --- [MODIFIED] Added 'group' for hover effects and new colorful styling ---
+                className={`bg-white dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:scale-[1.02] group ${getCardAccentColor(
+                  req.status
+                )}`}
               >
-                <div className="p-4 sm:p-6">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-                    <div className="flex items-center mb-4 sm:mb-0">
-                      <img
-                        src={getAvatarUrl(req.mentee.profile)}
-                        alt={`Avatar of ${req.mentee.profile.name}`}
-                        className="w-12 h-12 rounded-full object-cover mr-4"
-                      />
-                      <div>
-                        <h4 className="text-xl font-bold text-gray-800 dark:text-gray-100">
-                          {req.mentee.profile.name}
-                        </h4>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Requested on{" "}
-                          {new Date(req.createdAt).toLocaleDateString()}
-                        </p>
+                <Link
+                  to={`/users/${req.mentee.id}`}
+                  className="block hover:bg-gray-50/50 dark:hover:bg-gray-700/20"
+                >
+                  <div className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                      <div className="flex items-center mb-4 sm:mb-0">
+                        <img
+                          src={getAvatarUrl(req.mentee.profile)}
+                          alt={`Avatar of ${req.mentee.profile.name}`}
+                          className="w-12 h-12 rounded-full object-cover mr-4 ring-2 ring-white/50"
+                        />
+                        <div>
+                          <h4 className="text-xl font-bold text-gray-800 dark:text-gray-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                            {req.mentee.profile.name}
+                          </h4>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Requested on{" "}
+                            {new Date(req.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-4 sm:mt-0">
+                        <StatusBadge status={req.status} />
                       </div>
                     </div>
-                    <div className="mt-4 sm:mt-0">
-                      <StatusBadge status={req.status} />
+                    <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700/50">
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                        <strong>Bio:</strong> {req.mentee.profile.bio}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        <strong>Goals:</strong> {req.mentee.profile.goals}
+                      </p>
                     </div>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                      <strong>Bio:</strong> {req.mentee.profile.bio}
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">
-                      <strong>Goals:</strong> {req.mentee.profile.goals}
-                    </p>
-                  </div>
-                </div>
+                </Link>
 
                 {req.status === "PENDING" && (
                   <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-3 sm:px-6 grid grid-cols-2 sm:flex sm:justify-end gap-3">
-                    {/* FIX: Updated button styles for clear, functional colors and better interactivity. */}
                     <button
                       onClick={() => handleUpdateRequest(req.id, "REJECTED")}
                       disabled={updatingRequestId === req.id}

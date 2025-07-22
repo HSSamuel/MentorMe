@@ -15,10 +15,8 @@ interface CallStatus {
   message: string;
   type: CallStatusType;
 }
-// --- [REMOVED] ChatMessage interface is no longer needed ---
 
 const LiveTranscript = ({ transcript }: { transcript: string }) => (
-  // --- [UPDATED] This component is now styled to overlay at the bottom ---
   <div className="transcript-container-overlay">
     <h3 className="transcript-header">Live Transcript</h3>
     <div className="transcript-content">
@@ -73,7 +71,6 @@ const VideoCallPage = () => {
   // --- Feature States ---
   const [isNotepadOpen, setIsNotepadOpen] = useState(false);
   const [notepadContent, setNotepadContent] = useState("");
-  // --- [REMOVED] Chat-related states are no longer needed ---
   const [isAudioMuted, setIsAudioMuted] = useState(false);
   const [isVideoStopped, setIsVideoStopped] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -83,6 +80,7 @@ const VideoCallPage = () => {
   const transcriptionSocketRef = useRef<WebSocket | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [insightsGenerated, setInsightsGenerated] = useState(false);
+  const notificationSentRef = useRef(false); // --- [ADDED] Ref to prevent sending multiple notifications ---
 
   // --- Core Logic ---
 
@@ -171,13 +169,32 @@ const VideoCallPage = () => {
       setNotepadContent(content)
     );
 
-    // --- [REMOVED] In-call chat listener is no longer needed ---
-
     return () => {
       videoRoom?.disconnect();
       dataSocket?.disconnect();
     };
   }, [videoToken, sessionId, authToken, sessionStartTime]);
+
+  // --- [ADDED] This effect triggers the notification to the mentor ---
+  useEffect(() => {
+    // Only run this logic if we have a room, a user, and haven't sent the notification yet
+    if (room && user?.role === "MENTEE" && !notificationSentRef.current) {
+      // Mark that we are sending the notification to prevent duplicates
+      notificationSentRef.current = true;
+
+      axios
+        .post(`/sessions/${sessionId}/notify-call`)
+        .then(() => {
+          toast.success(
+            "Your mentor has been notified that you've joined the call."
+          );
+        })
+        .catch((error) => {
+          console.error("Failed to send call notification:", error);
+          toast.error("Could not notify your mentor.");
+        });
+    }
+  }, [room, user, sessionId]);
 
   // --- Feature Handlers ---
   const handleNotepadChange = useCallback(
@@ -190,8 +207,6 @@ const VideoCallPage = () => {
     },
     [sessionId]
   );
-
-  // --- [REMOVED] handleSendMessage function is no longer needed ---
 
   const toggleAudio = () => {
     room?.localParticipant.audioTracks.forEach((pub) => {
@@ -356,14 +371,12 @@ const VideoCallPage = () => {
         {status.message}
       </p>
 
-      {/* --- [UPDATED] The main area now focuses only on video and overlays --- */}
       <div className={`video-main-area ${getStatusClasses(status.type)}`}>
         <div className="video-content">
           <div ref={remoteVideoRef} className="remote-video-container" />
           <div ref={localVideoRef} className="local-video-container" />
         </div>
 
-        {/* --- [UPDATED] Notepad and Transcript are now overlays --- */}
         <SharedNotepad
           isOpen={isNotepadOpen}
           onToggle={() => setIsNotepadOpen((prev) => !prev)}
@@ -398,7 +411,6 @@ const VideoCallPage = () => {
           >
             {isScreenSharing ? "Stop Sharing" : "Share Screen"}
           </button>
-          {/* --- [NEW] Button to toggle the notepad overlay --- */}
           <button
             onClick={() => setIsNotepadOpen((prev) => !prev)}
             className={`control-button ${

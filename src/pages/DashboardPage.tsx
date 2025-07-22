@@ -440,33 +440,35 @@ const DashboardPage = () => {
         renderLoading()
       ) : user ? (
         <>
-          <div className="bg-white/70 dark:bg-gray-800/50 backdrop-blur-sm rounded-lg shadow-lg p-6 sm:p-8 mb-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+          {/* --- [START] Welcome Card Styling Update --- */}
+          <div className="bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 rounded-lg shadow-xl p-6 sm:p-8 mb-8 flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="text-center sm:text-left">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              <h1 className="text-3xl font-bold text-white mb-2">
                 Welcome back,{" "}
-                <span className="animate-rolling-color">
+                <span className="text-yellow-300">
                   {user.profile?.name || user.email.split("@")[0]}!
                 </span>
               </h1>
 
               {user.role && (
-                <span className="inline-block bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">
-                  You are logged in as a{" "}
+                <span className="inline-block bg-white/20 text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">
+                  You are a {" "}
                   {user.role.charAt(0).toUpperCase() +
                     user.role.slice(1).toLowerCase()}
                 </span>
               )}
 
-              <p className="text-gray-600 dark:text-gray-300 mt-2">
+              <p className="text-indigo-100 mt-2">
                 Here's a summary of your activity on the platform.
               </p>
             </div>
             <img
               src={getAvatarUrl()}
               alt="Profile"
-              className="h-24 w-24 rounded-full object-cover ring-4 ring-white/50"
+              className="h-24 w-24 rounded-full object-cover ring-4 ring-white/50 shadow-lg"
             />
           </div>
+          {/* --- [END] Welcome Card Styling Update --- */}
 
           {isLoading && !stats ? renderLoading() : null}
           {!isLoading && !stats && !isAuthLoading ? renderError() : null}

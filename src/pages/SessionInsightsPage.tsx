@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import apiClient from "../api/axios";
-import { useAuth } from "../contexts/AuthContext"; // Assuming useAuth provides the current user
+import { useAuth } from "../contexts/AuthContext";
 
 // --- Helper Icons ---
 const SummaryIcon = () => (
@@ -34,9 +34,11 @@ const ActionItemsIcon = () => (
     />
   </svg>
 );
-const ErrorIcon = () => (
+
+// --- [ADDED] A friendlier icon for when insights are not found ---
+const InsightsNotFoundIcon = () => (
   <svg
-    className="w-12 h-12 text-red-500"
+    className="w-12 h-12 text-blue-500"
     fill="none"
     viewBox="0 0 24 24"
     stroke="currentColor"
@@ -44,8 +46,8 @@ const ErrorIcon = () => (
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
-      strokeWidth={2}
-      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      strokeWidth="1.5"
+      d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
     />
   </svg>
 );
@@ -71,7 +73,6 @@ const InsightsSkeletonLoader = () => (
   </div>
 );
 
-// Define the structure of the insight data
 interface Insight {
   summary: string;
   actionItems: string[];
@@ -79,9 +80,9 @@ interface Insight {
 
 const SessionInsightsPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const { user } = useAuth(); // Get the current user to determine the other participant
+  const { user } = useAuth();
   const [insight, setInsight] = useState<Insight | null>(null);
-  const [sessionDetails, setSessionDetails] = useState<any | null>(null); // --- [NEW] State for full session details
+  const [sessionDetails, setSessionDetails] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -92,12 +93,10 @@ const SessionInsightsPage = () => {
         setIsLoading(false);
         return;
       }
-
       try {
-        // --- [NEW] Fetch both insights and session details in parallel for efficiency ---
         const [insightRes, sessionRes] = await Promise.all([
           apiClient.get(`/sessions/${sessionId}/insights`),
-          apiClient.get(`/sessions/${sessionId}`), // Fetches full session data
+          apiClient.get(`/sessions/${sessionId}`),
         ]);
         setInsight(insightRes.data);
         setSessionDetails(sessionRes.data);
@@ -109,7 +108,6 @@ const SessionInsightsPage = () => {
         } else {
           setError("Failed to fetch session insights. Please try again later.");
         }
-        console.error("Error fetching insights:", err);
       } finally {
         setIsLoading(false);
       }
@@ -118,7 +116,6 @@ const SessionInsightsPage = () => {
     fetchPageData();
   }, [sessionId]);
 
-  // Helper to get the name of the other person in the session
   const getOtherParticipantName = () => {
     if (!sessionDetails || !user) return "your session";
     if (sessionDetails.mentor.id === user.id) {
@@ -133,13 +130,14 @@ const SessionInsightsPage = () => {
     }
 
     if (error) {
+      // --- [UPDATED] Redesigned error block for a friendlier message ---
       return (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-red-300 dark:border-red-700 text-center">
+        <div className="bg-blue-50 dark:bg-gray-800 p-8 rounded-xl shadow-md border border-blue-200 dark:border-blue-800 text-center">
           <div className="flex justify-center mb-4">
-            <ErrorIcon />
+            <InsightsNotFoundIcon />
           </div>
-          <h2 className="text-xl font-bold text-red-800 dark:text-red-300">
-            An Error Occurred
+          <h2 className="text-xl font-bold text-blue-800 dark:text-blue-300">
+            Insights Not Available Yet
           </h2>
           <p className="mt-2 text-gray-600 dark:text-gray-400">{error}</p>
         </div>
@@ -152,7 +150,6 @@ const SessionInsightsPage = () => {
 
     return (
       <div className="space-y-8">
-        {/* Session Summary Card */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4 mb-4">
             <div className="bg-indigo-100 dark:bg-indigo-900/50 p-2 rounded-full">
@@ -166,8 +163,6 @@ const SessionInsightsPage = () => {
             {insight.summary}
           </p>
         </div>
-
-        {/* Action Items Card */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4 mb-4">
             <div className="bg-green-100 dark:bg-green-900/50 p-2 rounded-full">
@@ -204,7 +199,6 @@ const SessionInsightsPage = () => {
         <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white">
           AI-Powered Session Insights
         </h1>
-        {/* --- [UPDATED] Display a more informative subtitle with participant and date --- */}
         {!isLoading && sessionDetails && (
           <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
             A summary of your session with {getOtherParticipantName()} on{" "}
@@ -218,7 +212,6 @@ const SessionInsightsPage = () => {
       </div>
       {renderContent()}
       <div className="mt-8 text-center">
-        {/* --- [UPDATED] Corrected link to point to the correct route --- */}
         <Link
           to="/my-sessions"
           className="text-blue-600 dark:text-blue-400 hover:underline"
