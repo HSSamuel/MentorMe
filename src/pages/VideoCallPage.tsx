@@ -117,7 +117,7 @@ const VideoCallPage = () => {
     Video.connect(videoToken, {
       name: sessionId,
       audio: true,
-      video: true,
+      video: { width: 1280 },
     })
       .then((room) => {
         videoRoom = room;
@@ -369,20 +369,22 @@ const VideoCallPage = () => {
         {status.message}
       </p>
 
+      {/* --- [THE FIX] --- */}
+      {/* The main video area's structure is updated for the side-by-side layout. */}
       <div className={`video-main-area ${getStatusClasses(status.type)}`}>
         <div className="video-grid-container">
-          <div className="video-participant-container">
-            <div ref={remoteVideoRef} className="video-feed" />
-            <div className="video-label">
-              {user?.role === 'MENTEE' ? 'Mentor' : 'Mentee'}
-            </div>
-          </div>
-          <div className="video-participant-container">
-            <div ref={localVideoRef} className="video-feed" />
-            <div className="video-label">
-              {user?.role === 'MENTEE' ? 'You (Mentee)' : 'You (Mentor)'}
-            </div>
-          </div>
+          {" "}
+          {/* New parent container for the grid */}
+          <div
+            ref={remoteVideoRef}
+            className="video-participant-container"
+          />{" "}
+          {/* New class */}
+          <div
+            ref={localVideoRef}
+            className="video-participant-container"
+          />{" "}
+          {/* New class */}
         </div>
 
         <SharedNotepad
