@@ -1,8 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom"; // Removed useNavigate, as it's not directly used for redirection within this component anymore.
+import { useParams, Link } from "react-router-dom";
 import apiClient from "../api/axios";
 import { useAuth } from "../contexts/AuthContext";
 import { formatLastSeen } from "../utils/timeFormat";
+import {
+  Award,
+  User,
+  Star,
+  MessageSquare,
+  CalendarPlus,
+  Edit,
+} from "lucide-react"; // Added icons
+import toast from "react-hot-toast"; // Assuming you use react-hot-toast
 
 // A simple spinner component
 const Spinner = () => (
@@ -34,22 +43,23 @@ const StarRatingDisplay = ({
           </svg>
         ))}
       </div>
-      <span className="text-gray-600 text-sm">({totalReviews} reviews)</span>
+      {totalReviews > 0 && (
+        <span className="text-gray-600 dark:text-gray-400 text-sm">
+          ({totalReviews} reviews)
+        </span>
+      )}
     </div>
   );
 };
 
-// [RENAMED]: Component from MentorProfilePage to UserProfilePage
 const UserProfilePage = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-
-  const [profileUser, setProfileUser] = useState<any>(null); // [MODIFIED]: Renamed state to profileUser
+  const [profileUser, setProfileUser] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [avgRating, setAvgRating] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-
   const [isRequested, setIsRequested] = useState(false);
   const [isRequestLoading, setIsRequestLoading] = useState(false);
   const [requestError, setRequestError] = useState("");
@@ -70,8 +80,6 @@ const UserProfilePage = () => {
         }
       } catch (err) {
         console.warn("Could not check mentorship request status:", err);
-        setIsRequested(false);
-        setMentorshipRequestStatus(null);
       }
     } else if (user && user.role !== "MENTEE") {
       setIsRequested(true);
@@ -81,16 +89,16 @@ const UserProfilePage = () => {
 
   useEffect(() => {
     const fetchProfileData = async () => {
+      if (!id) return;
       setIsLoading(true);
       try {
-        // [MODIFIED]: Call generic user profile endpoint
         const [userRes, reviewsRes] = await Promise.all([
-          apiClient.get(`/users/${id}`), // [MODIFIED]: Changed API endpoint
-          apiClient.get(`/reviews/mentor/${id}`), // Still assumes reviews are only for mentors
+          apiClient.get(`/users/${id}`),
+          apiClient.get(`/reviews/mentor/${id}`),
         ]);
 
-        setProfileUser(userRes.data); // [MODIFIED]: Set to profileUser state
-        // Only set reviews if the fetched user is a mentor
+        setProfileUser(userRes.data);
+
         if (userRes.data.role === "MENTOR") {
           setReviews(reviewsRes.data);
           if (reviewsRes.data.length > 0) {
@@ -100,16 +108,12 @@ const UserProfilePage = () => {
             );
             setAvgRating(totalRating / reviewsRes.data.length);
           }
-        } else {
-          setReviews([]); // Clear reviews if not a mentor
-          setAvgRating(0);
         }
-
         if (user) {
           await checkIfAlreadyRequested();
         }
       } catch (err) {
-        setError("User profile not found or an error occurred."); // [MODIFIED]: Error message
+        setError("User profile not found or an error occurred.");
         console.error(err);
       } finally {
         setIsLoading(false);
@@ -122,45 +126,36 @@ const UserProfilePage = () => {
     setRequestError("");
     setIsRequestLoading(true);
     try {
-      await apiClient.post("/requests", { mentorId: profileUser.id }); // [MODIFIED]: Use profileUser.id
+      await apiClient.post("/requests", { mentorId: profileUser.id });
       setIsRequested(true);
       setMentorshipRequestStatus("PENDING");
+      toast.success("Mentorship request sent successfully!");
     } catch (err: any) {
       const errorMessage =
         err.response?.status === 409
           ? "You have already sent a request to this mentor."
           : "Failed to send request. Please try again.";
       setRequestError(errorMessage);
-      console.error(err);
+      toast.error(errorMessage);
     } finally {
       setIsRequestLoading(false);
     }
   };
 
-  if (isLoading) {
+  if (isLoading)
+    return (
+      <p className="text-center text-gray-500 mt-10">Loading user profile...</p>
+    );
+  if (error) return <p className="text-center text-red-500 mt-10">{error}</p>;
+  if (!profileUser)
     return (
       <p className="text-center text-gray-500 mt-10">
-        Loading user profile... {/* [MODIFIED]: Loading message */}
+        This user could not be found.
       </p>
     );
-  }
-
-  if (error) {
-    return <p className="text-center text-red-500 mt-10">{error}</p>;
-  }
-
-  if (!profileUser) {
-    // [MODIFIED]: Check profileUser
-    return (
-      <p className="text-center text-gray-500 mt-10">
-        This user could not be found. {/* [MODIFIED]: Not found message */}
-      </p>
-    );
-  }
 
   const getAvatarUrl = () => {
     if (profileUser.profile?.avatarUrl) {
-      // [MODIFIED]: Use profileUser.profile
       return profileUser.profile.avatarUrl.startsWith("http")
         ? profileUser.profile.avatarUrl
         : `${apiClient.defaults.baseURL}${profileUser.profile.avatarUrl}`.replace(
@@ -169,198 +164,179 @@ const UserProfilePage = () => {
           );
     }
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      profileUser.profile.name // [MODIFIED]: Use profileUser.profile.name
-    )}&background=random&color=fff`;
+      profileUser.profile.name
+    )}&background=random&color=fff&size=128`;
   };
 
-  let buttonText = "Request Mentorship";
+  let buttonTextContent = "Request Mentorship";
   if (isRequested) {
     switch (mentorshipRequestStatus) {
       case "PENDING":
-        buttonText = "Request Pending...";
+        buttonTextContent = "Request Pending...";
         break;
       case "ACCEPTED":
-        buttonText = "Mentorship Accepted!";
+        buttonTextContent = "Mentorship Accepted!";
         break;
       case "REJECTED":
-        buttonText = "Request Rejected";
+        buttonTextContent = "Request Rejected";
         break;
       case "CANCELLED":
-        buttonText = "Request Cancelled";
+        buttonTextContent = "Request Cancelled";
         break;
       default:
-        buttonText = "Request Sent ✓";
+        buttonTextContent = "Request Sent ✓";
     }
   }
-  if (isRequestLoading) {
-    buttonText = <Spinner />;
-  }
+  const buttonText = isRequestLoading ? <Spinner /> : buttonTextContent;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-gray-900 rounded-lg shadow-xl dark:shadow-none overflow-hidden">
-        {/* [MODIFIED] Added gradient for light mode and refined dark mode */}
-        <div className="p-8">
-          <div className="flex flex-col md:flex-row items-center md:items-start text-center md:text-left">
+    <div className="bg-gray-50 dark:bg-gray-900 min-h-screen p-4 sm:p-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+          <div className="h-48 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 relative">
             <img
               src={getAvatarUrl()}
-              alt={`Avatar of ${profileUser.profile.name}`} // [MODIFIED]: Use profileUser.profile.name
-              className="w-32 h-32 rounded-full object-cover flex-shrink-0 mb-6 md:mb-0 md:mr-8 border-2 border-blue-200 dark:border-blue-700"
+              alt={`Avatar of ${profileUser.profile.name}`}
+              className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-gray-800 absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 shadow-lg"
             />
-            <div className="flex-grow">
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-                {profileUser.profile.name}{" "}
-                {/* [MODIFIED]: Use profileUser.profile.name */}
-              </h1>
-              <p className="text-gray-600 dark:text-gray-300 text-sm mt-1">
-                {profileUser.role} {/* [ADD]: Display user's role */}
-              </p>
-              {profileUser.role === "MENTOR" &&
-                reviews.length > 0 && ( // [MODIFIED]: Only show rating if mentor
-                  <div className="mt-2 flex justify-center md:justify-start">
-                    <StarRatingDisplay
-                      rating={avgRating}
-                      totalReviews={reviews.length}
-                    />
-                  </div>
-                )}
-              {profileUser.lastSeen && ( // [MODIFIED]: Use profileUser.lastSeen
-                <p className="text-gray-500 dark:text-gray-300 text-sm mt-1">
-                  {" "}
-                  {/* [MODIFIED] text-gray-300 for dark mode for better visibility */}
-                  {formatLastSeen(profileUser.lastSeen)}{" "}
-                  {/* [MODIFIED]: Use profileUser.lastSeen */}
-                </p>
-              )}
-              <p className="mt-4 text-lg text-gray-600 dark:text-gray-200">
-                {profileUser.profile.bio}
-              </p>{" "}
-              {/* [MODIFIED] text-gray-200 for dark mode for better visibility */}
-              {/* [MODIFIED START]: Conditional buttons/messages based on roles and self-view */}
-              {user && user.id === id ? (
-                // If viewing their own profile
-                <Link
-                  to="/profile/edit"
-                  className="mt-6 inline-block px-8 py-3 text-lg font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Edit My Profile
-                </Link>
-              ) : (
-                // If viewing another user's profile
-                user &&
-                user.role === "MENTEE" &&
-                profileUser.role === "MENTOR" && (
-                  // Only mentee can request mentor
-                  <button
-                    onClick={handleRequestMentorship}
-                    disabled={isRequested || isRequestLoading}
-                    className={`mt-6 inline-block px-8 py-3 text-lg font-semibold text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 flex justify-center items-center ${
-                      isRequested
-                        ? mentorshipRequestStatus === "ACCEPTED"
-                          ? "bg-green-600 cursor-not-allowed"
-                          : "bg-blue-500 cursor-not-allowed"
-                        : isRequestLoading
-                        ? "bg-blue-400 cursor-not-allowed"
-                        : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
-                    }`}
-                  >
-                    {buttonText}
-                  </button>
-                )
-              )}
-              {user && user.id !== id && profileUser.role === "MENTEE" && (
-                // If logged-in user is not viewing their own profile and the viewed profile is a mentee
-                <p className="mt-6 text-gray-600 dark:text-gray-300 text-sm">
-                  This is a mentee profile.
-                </p>
-              )}
-              {user &&
-                user.id !== id &&
-                user.role === "MENTOR" &&
-                profileUser.role === "MENTOR" && (
-                  // Mentor viewing another mentor
-                  <p className="mt-6 text-gray-600 dark:text-gray-300 text-sm">
-                    You are both mentors. Direct mentorship requests are
-                    typically mentee-to-mentor.
-                  </p>
-                )}
-              {!user && (
-                // Not logged in
-                <p className="mt-6 text-gray-600 dark:text-gray-300 text-sm">
-                  Log in to interact with this user.
-                </p>
-              )}
-              {requestError && (
-                <p className="text-red-500 text-sm text-center mt-2">
-                  {requestError}
-                </p>
-              )}
-            </div>
           </div>
-        </div>
-        <div className="bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-gray-700 px-8 py-6">
-          {" "}
-          {/* [MODIFIED] Changed background for light/dark mode */}
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
-            {" "}
-            {/* [MODIFIED] text color */}
-            Skills & Expertise
-          </h3>
-          <div className="flex flex-wrap gap-3">
-            {profileUser.profile.skills.map(
-              (
-                skill: string // [MODIFIED]: Use profileUser.profile.skills
-              ) => (
-                <span
-                  key={skill}
-                  className="bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 text-sm font-medium px-3 py-1 rounded-full"
-                >
-                  {skill}
-                </span>
-              )
+          <div className="pt-20 pb-8 px-8 text-center">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              {profileUser.profile.name}
+            </h1>
+            <span
+              className={`mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
+                profileUser.role === "MENTOR"
+                  ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                  : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+              }`}
+            >
+              {profileUser.role === "MENTOR" ? (
+                <Award size={16} className="mr-1.5" />
+              ) : (
+                <User size={16} className="mr-1.5" />
+              )}
+              {profileUser.role}
+            </span>
+            {profileUser.role === "MENTOR" && reviews.length > 0 && (
+              <div className="mt-3 flex justify-center">
+                <StarRatingDisplay
+                  rating={avgRating}
+                  totalReviews={reviews.length}
+                />
+              </div>
+            )}
+            {profileUser.lastSeen && (
+              <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">
+                {formatLastSeen(profileUser.lastSeen)}
+              </p>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* Reviews Section - Only show if the user is a MENTOR and has reviews */}
-      {profileUser.role === "MENTOR" && (
-        // [ADD]: Conditionally display reviews section
-        <div className="mt-8">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            What Mentees Are Saying
-          </h2>
-          {reviews.length > 0 ? (
-            <div className="space-y-6">
-              {reviews.map((review) => (
-                <div
-                  key={review.id}
-                  className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-md"
-                >
-                  {" "}
-                  {/* [MODIFIED] Changed background for dark mode */}
-                  <div className="flex items-center mb-2">
-                    <StarRatingDisplay
-                      rating={review.rating}
-                      totalReviews={0}
-                    />
-                    <p className="ml-4 font-bold text-gray-800 dark:text-gray-200">
-                      {review.mentorshipRequest.mentee.profile.name}
-                    </p>
-                  </div>
-                  <p className="text-gray-600 dark:text-gray-300 italic">
-                    "{review.comment}"
-                  </p>
-                </div>
-              ))}
+          <div className="border-t dark:border-gray-700 px-8 py-6 space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                About Me
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                {profileUser.profile.bio}
+              </p>
             </div>
-          ) : (
-            <p className="text-gray-500 dark:text-gray-400">
-              This mentor doesn't have any reviews yet.
+
+            {profileUser.profile.skills &&
+              profileUser.profile.skills.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">
+                    Skills & Expertise
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {profileUser.profile.skills.map((skill: string) => (
+                      <span
+                        key={skill}
+                        className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm font-medium"
+                      >
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+          </div>
+
+          <div className="bg-gray-50 dark:bg-gray-700/50 px-8 py-4 flex flex-col sm:flex-row justify-center items-center gap-4">
+            {user && user.id === id ? (
+              <Link
+                to="/profile/edit"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 shadow-md transition-all"
+              >
+                <Edit size={20} /> Edit My Profile
+              </Link>
+            ) : user &&
+              user.role === "MENTEE" &&
+              profileUser.role === "MENTOR" ? (
+              <>
+                <button
+                  onClick={handleRequestMentorship}
+                  disabled={isRequested || isRequestLoading}
+                  className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 text-white rounded-lg font-semibold transition-all ${
+                    isRequested
+                      ? "bg-gray-500 cursor-not-allowed"
+                      : "bg-indigo-600 hover:bg-indigo-700 shadow-md"
+                  }`}
+                >
+                  <MessageSquare size={20} /> {buttonText}
+                </button>
+                <Link
+                  to={`/book-session/${id}`}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 shadow-md transition-all"
+                >
+                  <CalendarPlus size={20} /> Book a Session
+                </Link>
+              </>
+            ) : null}
+          </div>
+          {requestError && (
+            <p className="text-red-500 text-sm text-center py-2">
+              {requestError}
             </p>
           )}
         </div>
-      )}
+
+        {profileUser.role === "MENTOR" && (
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              What Mentees Are Saying
+            </h2>
+            {reviews.length > 0 ? (
+              <div className="space-y-6">
+                {reviews.map((review) => (
+                  <div
+                    key={review.id}
+                    className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md"
+                  >
+                    <div className="flex items-center mb-2">
+                      <StarRatingDisplay
+                        rating={review.rating}
+                        totalReviews={0}
+                      />
+                      <p className="ml-4 font-bold text-gray-800 dark:text-gray-200">
+                        {review.mentorshipRequest.mentee.profile.name}
+                      </p>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-300 italic">
+                      "{review.comment}"
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 dark:text-gray-400">
+                This mentor doesn't have any reviews yet.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -5,36 +5,63 @@ import { io, Socket } from "socket.io-client";
 import NotificationPanel from "./NotificationPanel";
 import toast from "react-hot-toast";
 
+// It's good practice to define the shape of your data
+interface Notification {
+  id: string;
+  message: string;
+  isRead: boolean;
+  // Add any other properties a notification might have
+}
+
 const NotificationBell = () => {
   const { user, token } = useAuth();
-  const [notifications, setNotifications] = useState<any[]>([]);
+  // State is correctly initialized as an empty array
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  // This line is now safe because 'notifications' will always be an array.
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   const fetchNotifications = async () => {
     try {
       const response = await apiClient.get("/notifications");
-      setNotifications(response.data);
+      // --- [THE FIX] ---
+      // We check if the response data is an array before setting the state.
+      // If it's not, we set an empty array to prevent the component from crashing.
+      if (Array.isArray(response.data)) {
+        setNotifications(response.data);
+      } else {
+        console.error(
+          "API response for notifications is not an array:",
+          response.data
+        );
+        setNotifications([]); // Fallback to an empty array
+      }
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
+      setNotifications([]); // Also set to an empty array on error
     }
   };
 
   useEffect(() => {
-    fetchNotifications();
-
+    // --- [IMPROVEMENT] ---
+    // Only fetch notifications and connect to the socket if the user token exists.
     if (token) {
-      socketRef.current = io(import.meta.env.VITE_API_BASE_URL, {
+      fetchNotifications();
+
+      socketRef.current = io(import.meta.env.VITE_API_BASE_URL!, {
         auth: { token },
       });
 
-      socketRef.current.on("newNotification", (newNotification) => {
-        setNotifications((prev) => [newNotification, ...prev]);
-        toast.info(`New notification: ${newNotification.message}`);
-      });
+      socketRef.current.on(
+        "newNotification",
+        (newNotification: Notification) => {
+          setNotifications((prev) => [newNotification, ...prev]);
+          toast.info(`New notification: ${newNotification.message}`);
+        }
+      );
 
       socketRef.current.on("goalCompleted", (data) => {
         fetchNotifications();
@@ -47,6 +74,9 @@ const NotificationBell = () => {
       return () => {
         socketRef.current?.disconnect();
       };
+    } else {
+      // If there's no token, ensure notifications are cleared out.
+      setNotifications([]);
     }
   }, [token]);
 
@@ -85,7 +115,6 @@ const NotificationBell = () => {
     }
   };
 
-  // --- NEW: Function to delete a single notification ---
   const handleDelete = async (notificationId: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
     try {
@@ -95,7 +124,6 @@ const NotificationBell = () => {
     }
   };
 
-  // --- NEW: Function to delete all notifications ---
   const handleDeleteAll = async () => {
     setNotifications([]);
     try {
@@ -134,9 +162,9 @@ const NotificationBell = () => {
           notifications={notifications}
           onMarkAsRead={handleMarkAsRead}
           onMarkAllAsRead={handleMarkAllAsRead}
-          onDelete={handleDelete} // Pass the new delete handler
-          onDeleteAll={handleDeleteAll} // Pass the new delete all handler
-          onClose={() => setIsOpen(false)} // Pass the close handler
+          onDelete={handleDelete}
+          onDeleteAll={handleDeleteAll}
+          onClose={() => setIsOpen(false)}
         />
       )}
     </div>

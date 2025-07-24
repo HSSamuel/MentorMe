@@ -182,7 +182,8 @@ const helpArticles = [
   },
   {
     title: "Get In Touch",
-    content: "Reach me @ smkmayomisamuel@gmail.com.",
+    content:
+      "You can reach me via [WhatsApp](https://wa.me/2348084737049).",
   },
 ];
 
@@ -457,7 +458,11 @@ const AIChatAssistant = () => {
   };
 
   const MessageContent = ({ content }: { content: string }) => {
-    const parts = content.split(/(\[View Goals\]\(#\/goals\))|(\*\*.*?\*\*)/g);
+    // --- [THE FIX] ---
+    // The regex is updated to also capture generic markdown-style links.
+    const parts = content.split(
+      /(\[View Goals\]\(#\/goals\))|(\[.*?\]\(.*?\))|(\*\*.*?\*\*)/g
+    );
 
     return (
       <>
@@ -479,6 +484,29 @@ const AIChatAssistant = () => {
               </Link>
             );
           }
+
+          // --- [THE FIX] ---
+          // New logic to handle the generic markdown links for email and WhatsApp.
+          if (part.match(/\[.*?\]\(.*?\)/)) {
+            const linkTextMatch = part.match(/\[(.*?)\]/);
+            const urlMatch = part.match(/\((.*?)\)/);
+            if (linkTextMatch && urlMatch) {
+              const linkText = linkTextMatch[1];
+              const url = urlMatch[1];
+              return (
+                <a
+                  key={index}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 font-bold underline hover:text-blue-800"
+                >
+                  {linkText}
+                </a>
+              );
+            }
+          }
+
           return <React.Fragment key={index}>{part}</React.Fragment>;
         })}
       </>
@@ -832,7 +860,7 @@ const AIChatAssistant = () => {
                     {currentArticle.title}
                   </h3>
                   <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
-                    {currentArticle.content}
+                    <MessageContent content={currentArticle.content} />
                   </p>
                 </div>
               )}

@@ -1,9 +1,10 @@
 import React, { Suspense } from "react";
-import { Routes, Route, Navigate, Link } from "react-router-dom";
+// --- [MODIFIED] Added useParams for the redirect helper ---
+import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-// A more visually appealing loader for the Suspense fallback
+// A loader for Suspense fallback
 const PageLoader = () => (
   <div className="flex justify-center items-center h-screen w-full">
     <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
@@ -43,6 +44,16 @@ const GoalsPage = React.lazy(() => import("./pages/GoalsPage"));
 const SessionInsightsPage = React.lazy(
   () => import("./pages/SessionInsightsPage")
 );
+// --- [NEW] Lazily import the new Admin Dashboard page ---
+const AdminDashboardPage = React.lazy(
+  () => import("./pages/AdminDashboardPage")
+);
+
+// --- This helper component is now correctly used ---
+const MentorRedirect = () => {
+  const { id } = useParams();
+  return <Navigate to={`/users/${id}`} replace />;
+};
 
 function App() {
   return (
@@ -61,17 +72,21 @@ function App() {
 
           {/* Main Application Routes */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/users/:id" element={<UserProfilePage />} />
 
-          {/* Protected Routes */}
           <Route
-            path="/mentor/:id"
+            path="/users/:id"
             element={
               <ProtectedRoute>
                 <UserProfilePage />
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/mentor/:id"
+            element={<Navigate to="/users/:id" replace />}
+          />
+
+          {/* Protected Routes */}
           <Route
             path="/profile/edit"
             element={
@@ -144,7 +159,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* --- [UPDATED] Corrected path to fix routing error --- */}
           <Route
             path="/sessions"
             element={
@@ -186,7 +200,15 @@ function App() {
             }
           />
 
-          {/* Admin Routes */}
+          {/* --- [ENHANCED] Admin Routes --- */}
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
+                <AdminDashboardPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/admin/users"
             element={
@@ -211,8 +233,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-
-          {/* --- [REMOVED] Catch-all route for 404 Not Found --- */}
         </Routes>
       </Suspense>
     </Layout>

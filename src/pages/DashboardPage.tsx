@@ -452,7 +452,7 @@ const DashboardPage = () => {
 
               {user.role && (
                 <span className="inline-block bg-white/20 text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">
-                  You are a {" "}
+                  You are logged in as {" "}
                   {user.role.charAt(0).toUpperCase() +
                     user.role.slice(1).toLowerCase()}
                 </span>

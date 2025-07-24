@@ -5,10 +5,10 @@ import React, {
   useEffect,
   ReactNode,
   useRef,
+  useCallback, // Import useCallback for function memoization
 } from "react";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../api/axios";
-// --- [ADDED] Imports for Socket.IO client and react-hot-toast ---
 import { io, Socket } from "socket.io-client";
 import toast from "react-hot-toast";
 
@@ -58,52 +58,58 @@ const clearRefreshTokenCookie = () => {
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  // --- [ENHANCED] Initialize token directly from localStorage for robustness ---
+  const [token, setToken] = useState<string | null>(() =>
+    localStorage.getItem("authToken")
+  );
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
-  // --- [ADDED] Ref to hold the socket instance ---
   const socketRef = useRef<Socket | null>(null);
 
-  const fetchUser = async (authToken: string) => {
+  // --- [ENHANCED] Wrapped fetchUser in useCallback to stabilize its identity ---
+  const fetchUser = useCallback(async (authToken: string) => {
     apiClient.defaults.headers.common["Authorization"] = `Bearer ${authToken}`;
     try {
       const { data } = await apiClient.get("/auth/me");
       setUser(data);
     } catch (error) {
       console.error("Auth token is invalid, logging out.", error);
-      logout();
+      // Use the logout function to ensure a clean state reset
+      clearRefreshTokenCookie();
+      localStorage.removeItem("authToken");
+      setUser(null);
+      setToken(null);
+      delete apiClient.defaults.headers.common["Authorization"];
     }
-  };
+  }, []);
 
   useEffect(() => {
     const initAuth = async () => {
-      const refreshToken = getRefreshToken();
-      if (refreshToken) {
-        localStorage.setItem("authToken", refreshToken);
-        setToken(refreshToken);
-        await fetchUser(refreshToken);
+      // Prioritize token from localStorage, fallback to cookie if needed
+      const currentToken = token || getRefreshToken();
+      if (currentToken) {
+        if (!token) {
+          // Sync state if token was only in cookie
+          setToken(currentToken);
+          localStorage.setItem("authToken", currentToken);
+        }
+        await fetchUser(currentToken);
       }
       setIsLoading(false);
     };
     initAuth();
-  }, []);
+  }, [fetchUser]); // fetchUser is now a stable dependency
 
-  // --- [ADDED] useEffect to manage the real-time socket connection ---
   useEffect(() => {
-    // Connect to the socket server only when we have a user and token
     if (user && token) {
-      // Initialize the socket connection
-      const socket = io(import.meta.env.VITE_API_BASE_URL, {
+      const socket = io(import.meta.env.VITE_API_BASE_URL!, {
         auth: { token },
       });
       socketRef.current = socket;
 
-      // Join a room specific to this user to receive personal notifications
       socket.emit("join", user.id);
 
-      // Listen for the 'newNotification' event from the server
       socket.on("newNotification", (notification) => {
-        // When a notification is received, show it as a toast
         toast.custom(
           (t) => (
             <div
@@ -136,11 +142,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               </div>
             </div>
           ),
-          { duration: 10000 } // Keep the toast on screen for 10 seconds
+          { duration: 10000 }
         );
       });
 
-      // Cleanup function: disconnect the socket when the user logs out or component unmounts
       return () => {
         socket.disconnect();
         socketRef.current = null;
@@ -153,14 +158,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(newToken);
     setRefreshTokenCookie(newToken);
     localStorage.setItem("authToken", newToken);
-    apiClient.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
     await fetchUser(newToken);
     setIsLoading(false);
     navigate(from, { replace: true });
   };
 
   const logout = () => {
-    // --- [ADDED] Disconnect socket on logout ---
     if (socketRef.current) {
       socketRef.current.disconnect();
     }

@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import apiClient from "../api/axios";
 import toast from "react-hot-toast";
+import { GoogleIcon, FacebookIcon } from "../components/SocialIcons"; // Assuming you have these icons
 
 const availableSkills = [
   "Virtual Assistant",
@@ -178,6 +179,15 @@ const ProfileEditPage = () => {
     window.location.href = `${apiClient.defaults.baseURL}/calendar/google?token=${token}`;
   };
 
+  // --- [NEW] Handlers for importing data from social media ---
+  const handleGoogleImport = () => {
+    window.location.href = `${apiClient.defaults.baseURL}/auth/google`;
+  };
+
+  const handleFacebookImport = () => {
+    window.location.href = `${apiClient.defaults.baseURL}/auth/facebook`;
+  };
+
   return (
     <div className="py-8 -m-8 px-8 min-h-screen">
       <form
@@ -237,7 +247,7 @@ const ProfileEditPage = () => {
             {user?.role === "MENTOR" && (
               <div className="mt-4 border-t border-blue-400 pt-4">
                 <Link
-                  to={`/mentor/${user?.id}`}
+                  to={`/users/${user?.id}`}
                   target="_blank"
                   className="inline-block rounded-lg bg-white/20 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/30"
                 >
@@ -251,30 +261,60 @@ const ProfileEditPage = () => {
             <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-4">
               Integrations
             </h3>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-gray-700 dark:text-gray-200">
-                  Google Calendar
-                </p>
-                <p
-                  className={`text-sm ${
-                    isCalendarConnected
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-gray-500 dark:text-gray-400"
-                  }`}
-                >
-                  {isCalendarConnected ? "Connected" : "Not Connected"}
-                </p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-gray-700 dark:text-gray-200">
+                    Google Calendar
+                  </p>
+                  <p
+                    className={`text-sm ${
+                      isCalendarConnected
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-gray-500 dark:text-gray-400"
+                    }`}
+                  >
+                    {isCalendarConnected ? "Connected" : "Not Connected"}
+                  </p>
+                </div>
+                {!isCalendarConnected && (
+                  <button
+                    type="button"
+                    onClick={handleConnectCalendar}
+                    className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Connect
+                  </button>
+                )}
               </div>
-              {!isCalendarConnected && (
-                <button
-                  type="button"
-                  onClick={handleConnectCalendar}
-                  className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Connect
-                </button>
-              )}
+              {/* --- [NEW] Social Media Import Section --- */}
+              <div className="border-t dark:border-gray-700 pt-4">
+                <p className="font-medium text-gray-700 dark:text-gray-200 mb-2">
+                  Import Profile Data
+                </p>
+                <div className="flex flex-col space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleGoogleImport}
+                    className="w-full flex justify-center items-center gap-2 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <GoogleIcon />{" "}
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Import from Google
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleFacebookImport}
+                    className="w-full flex justify-center items-center gap-2 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  >
+                    <FacebookIcon />{" "}
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      Import from Facebook
+                    </span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

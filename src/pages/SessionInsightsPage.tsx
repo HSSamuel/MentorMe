@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import apiClient from "../api/axios";
 import { useAuth } from "../contexts/AuthContext";
+import { BookOpen, ListChecks, ArrowLeft } from "lucide-react"; // Using better icons
 
 // --- Helper Icons ---
 const SummaryIcon = () => (
@@ -34,8 +35,6 @@ const ActionItemsIcon = () => (
     />
   </svg>
 );
-
-// --- [ADDED] A friendlier icon for when insights are not found ---
 const InsightsNotFoundIcon = () => (
   <svg
     className="w-12 h-12 text-blue-500"
@@ -73,16 +72,22 @@ const InsightsSkeletonLoader = () => (
   </div>
 );
 
-interface Insight {
-  summary: string;
-  actionItems: string[];
+// --- [UPDATED] Simplified interface for the session data ---
+interface SessionData {
+  id: string;
+  date: string;
+  mentor: { profile?: { name?: string } };
+  mentee: { profile?: { name?: string } };
+  insights: {
+    summary: string;
+    actionItems: string[];
+  } | null;
 }
 
 const SessionInsightsPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const { user } = useAuth();
-  const [insight, setInsight] = useState<Insight | null>(null);
-  const [sessionDetails, setSessionDetails] = useState<any | null>(null);
+  // --- [UPDATED] Simplified state to hold the entire session object ---
+  const [session, setSession] = useState<SessionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,16 +99,13 @@ const SessionInsightsPage = () => {
         return;
       }
       try {
-        const [insightRes, sessionRes] = await Promise.all([
-          apiClient.get(`/sessions/${sessionId}/insights`),
-          apiClient.get(`/sessions/${sessionId}`),
-        ]);
-        setInsight(insightRes.data);
-        setSessionDetails(sessionRes.data);
+        // --- [UPDATED] Now makes a single, efficient API call ---
+        const response = await apiClient.get(`/sessions/${sessionId}/insights`);
+        setSession(response.data);
       } catch (err: any) {
         if (err.response?.status === 404) {
           setError(
-            "No insights have been generated for this session yet. You can generate them from the video call page after a session."
+            "Session not found or insights have not been generated for this session yet."
           );
         } else {
           setError("Failed to fetch session insights. Please try again later.");
@@ -116,36 +118,43 @@ const SessionInsightsPage = () => {
     fetchPageData();
   }, [sessionId]);
 
-  const getOtherParticipantName = () => {
-    if (!sessionDetails || !user) return "your session";
-    if (sessionDetails.mentor.id === user.id) {
-      return sessionDetails.mentee.profile.name;
-    }
-    return sessionDetails.mentor.profile.name;
-  };
-
   const renderContent = () => {
     if (isLoading) {
       return <InsightsSkeletonLoader />;
     }
 
-    if (error) {
-      // --- [UPDATED] Redesigned error block for a friendlier message ---
+    if (error || !session) {
       return (
         <div className="bg-blue-50 dark:bg-gray-800 p-8 rounded-xl shadow-md border border-blue-200 dark:border-blue-800 text-center">
           <div className="flex justify-center mb-4">
             <InsightsNotFoundIcon />
           </div>
           <h2 className="text-xl font-bold text-blue-800 dark:text-blue-300">
-            Insights Not Available Yet
+            Insights Not Available
           </h2>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">{error}</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">
+            {error || "Could not find the requested session."}
+          </p>
         </div>
       );
     }
 
-    if (!insight) {
-      return <p className="text-center text-gray-500">No insights found.</p>;
+    // --- [UPDATED] Checks for the nested 'insights' object ---
+    if (!session.insights) {
+      return (
+        <div className="bg-blue-50 dark:bg-gray-800 p-8 rounded-xl shadow-md border border-blue-200 dark:border-blue-800 text-center">
+          <div className="flex justify-center mb-4">
+            <InsightsNotFoundIcon />
+          </div>
+          <h2 className="text-xl font-bold text-blue-800 dark:text-blue-300">
+            Insights Not Generated Yet
+          </h2>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">
+            You can generate insights from the video call page after a session
+            is complete.
+          </p>
+        </div>
+      );
     }
 
     return (
@@ -153,28 +162,28 @@ const SessionInsightsPage = () => {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4 mb-4">
             <div className="bg-indigo-100 dark:bg-indigo-900/50 p-2 rounded-full">
-              <SummaryIcon />
+              <BookOpen className="w-6 h-6 text-indigo-500" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
               Session Summary
             </h2>
           </div>
           <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
-            {insight.summary}
+            {session.insights.summary}
           </p>
         </div>
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4 mb-4">
             <div className="bg-green-100 dark:bg-green-900/50 p-2 rounded-full">
-              <ActionItemsIcon />
+              <ListChecks className="w-6 h-6 text-green-500" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
               Action Items
             </h2>
           </div>
-          {insight.actionItems.length > 0 ? (
+          {session.insights.actionItems.length > 0 ? (
             <ul className="space-y-3">
-              {insight.actionItems.map((item, index) => (
+              {session.insights.actionItems.map((item, index) => (
                 <li key={index} className="flex items-start">
                   <span className="text-green-500 font-bold mr-3">✓</span>
                   <span className="text-gray-700 dark:text-gray-300">
@@ -195,30 +204,33 @@ const SessionInsightsPage = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white">
-          AI-Powered Session Insights
-        </h1>
-        {!isLoading && sessionDetails && (
-          <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
-            A summary of your session with {getOtherParticipantName()} on{" "}
-            {new Date(sessionDetails.date).toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </p>
-        )}
-      </div>
-      {renderContent()}
-      <div className="mt-8 text-center">
+      <div className="mb-8">
         <Link
           to="/my-sessions"
-          className="text-blue-600 dark:text-blue-400 hover:underline"
+          className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
         >
-          ← Back to My Sessions
+          <ArrowLeft size={20} />
+          Back to My Sessions
         </Link>
+        <div className="mt-4">
+          <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white">
+            AI-Powered Session Insights
+          </h1>
+          {!isLoading && session && (
+            <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
+              A summary of your session with{" "}
+              <strong>{session.mentor.profile?.name || "N/A"}</strong> &{" "}
+              <strong>{session.mentee.profile?.name || "N/A"}</strong> on{" "}
+              {new Date(session.date).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </p>
+          )}
+        </div>
       </div>
+      {renderContent()}
     </div>
   );
 };

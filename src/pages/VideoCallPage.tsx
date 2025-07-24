@@ -80,7 +80,7 @@ const VideoCallPage = () => {
   const transcriptionSocketRef = useRef<WebSocket | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [insightsGenerated, setInsightsGenerated] = useState(false);
-  const notificationSentRef = useRef(false); // --- [ADDED] Ref to prevent sending multiple notifications ---
+  const notificationSentRef = useRef(false);
 
   // --- Core Logic ---
 
@@ -117,7 +117,7 @@ const VideoCallPage = () => {
     Video.connect(videoToken, {
       name: sessionId,
       audio: true,
-      video: { width: 1280 },
+      video: true,
     })
       .then((room) => {
         videoRoom = room;
@@ -159,7 +159,7 @@ const VideoCallPage = () => {
         })
       );
 
-    dataSocket = io(import.meta.env.VITE_API_BASE_URL, {
+    dataSocket = io(import.meta.env.VITE_API_BASE_URL!, {
       auth: { token: authToken },
     });
     dataSocketRef.current = dataSocket;
@@ -175,11 +175,9 @@ const VideoCallPage = () => {
     };
   }, [videoToken, sessionId, authToken, sessionStartTime]);
 
-  // --- [ADDED] This effect triggers the notification to the mentor ---
+  // --- This effect triggers the notification to the mentor ---
   useEffect(() => {
-    // Only run this logic if we have a room, a user, and haven't sent the notification yet
     if (room && user?.role === "MENTEE" && !notificationSentRef.current) {
-      // Mark that we are sending the notification to prevent duplicates
       notificationSentRef.current = true;
 
       axios
@@ -372,9 +370,19 @@ const VideoCallPage = () => {
       </p>
 
       <div className={`video-main-area ${getStatusClasses(status.type)}`}>
-        <div className="video-content">
-          <div ref={remoteVideoRef} className="remote-video-container" />
-          <div ref={localVideoRef} className="local-video-container" />
+        <div className="video-grid-container">
+          <div className="video-participant-container">
+            <div ref={remoteVideoRef} className="video-feed" />
+            <div className="video-label">
+              {user?.role === 'MENTEE' ? 'Mentor' : 'Mentee'}
+            </div>
+          </div>
+          <div className="video-participant-container">
+            <div ref={localVideoRef} className="video-feed" />
+            <div className="video-label">
+              {user?.role === 'MENTEE' ? 'You (Mentee)' : 'You (Mentor)'}
+            </div>
+          </div>
         </div>
 
         <SharedNotepad

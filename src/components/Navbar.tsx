@@ -63,7 +63,7 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
   // Add this useEffect to handle the real-time avatar update
   useEffect(() => {
     if (token && user) {
-      socketRef.current = io(import.meta.env.VITE_API_BASE_URL, {
+      socketRef.current = io(import.meta.env.VITE_API_BASE_URL!, {
         auth: { token },
       });
 
@@ -108,9 +108,14 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
 
     return (
       <>
-        <NavLink to="/dashboard" className={linkClass}>
-          Dashboard
-        </NavLink>
+        {/* --- [THE FIX] --- */}
+        {/* The regular dashboard is now hidden for Admins */}
+        {user.role !== "ADMIN" && (
+          <NavLink to="/dashboard" className={linkClass}>
+            Dashboard
+          </NavLink>
+        )}
+
         {user.role === "MENTEE" && (
           <>
             <NavLink to="/mentors" className={linkClass}>
@@ -136,6 +141,11 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
         )}
         {user.role === "ADMIN" && (
           <>
+            {/* --- [THE FIX] --- */}
+            {/* Added a link to the new Admin Dashboard */}
+            <NavLink to="/admin/dashboard" className={linkClass}>
+              Dashboard
+            </NavLink>
             <NavLink to="/admin/users" className={linkClass}>
               Users
             </NavLink>
@@ -150,12 +160,16 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
         <NavLink to="/my-sessions" className={linkClass}>
           My Sessions
         </NavLink>
-        <NavLink to="/goals" className={linkClass}>
-          Goals
-        </NavLink>
-        <NavLink to="/messages" className={linkClass}>
-          Messages
-        </NavLink>
+        {user.role !== "ADMIN" && (
+          <>
+            <NavLink to="/goals" className={linkClass}>
+              Goals
+            </NavLink>
+            <NavLink to="/messages" className={linkClass}>
+              Messages
+            </NavLink>
+          </>
+        )}
       </>
     );
   };
