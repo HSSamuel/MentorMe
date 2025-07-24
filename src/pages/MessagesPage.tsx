@@ -17,7 +17,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
-// --- Helper hook to detect if the screen is mobile-sized ---
+// Helper hook to detect if the screen is mobile-sized
 const useMediaQuery = (query: string) => {
   const [matches, setMatches] = useState(window.matchMedia(query).matches);
   useEffect(() => {
@@ -41,7 +41,7 @@ const PageLoader = () => (
   </div>
 );
 
-// --- A component dedicated to showing the conversation list ---
+// A component dedicated to showing the conversation list
 const ConversationList = ({ connections, onSelectConversation }) => {
   const navigate = useNavigate();
   const handleAvatarClick = (e, userId) => {
@@ -93,7 +93,7 @@ const ConversationList = ({ connections, onSelectConversation }) => {
   );
 };
 
-// --- A component dedicated to showing the chat window ---
+// A component dedicated to showing the chat window
 const ChatWindow = ({ channel, onBack }) => {
   const { user } = useAuth();
   if (!channel) {
@@ -174,7 +174,11 @@ const MessagesPage = () => {
       setIsConnecting(false);
       return;
     }
-    const client = StreamChat.getInstance(import.meta.env.VITE_STREAM_API_KEY!);
+    const apiKey = import.meta.env.VITE_STREAM_API_KEY!;
+    // --- [DEBUGGING] Log the API key to ensure it's loaded correctly ---
+    console.log("Attempting to connect to Stream with API Key:", apiKey);
+
+    const client = StreamChat.getInstance(apiKey);
     let isMounted = true;
     const setupChat = async () => {
       try {
@@ -186,7 +190,7 @@ const MessagesPage = () => {
               image: user.profile?.avatarUrl,
             },
             async () => {
-              const response = await apiClient.post("/stream/token");
+              const response = await apiClient.post("/api/stream/token");
               return response.data.token;
             }
           );
@@ -194,11 +198,12 @@ const MessagesPage = () => {
         if (!isMounted) return;
         setChatClient(client);
         const response = await apiClient.get<Connection[]>(
-          "/users/connections"
+          "/api/users/connections"
         );
         if (isMounted) setConnections(response.data);
       } catch (error) {
-        console.error("Failed to setup chat:", error);
+        // --- [DEBUGGING] Log the full error object for more details ---
+        console.error("🔴 Failed to setup chat:", error);
         toast.error("Could not connect to chat service.");
       } finally {
         if (isMounted) setIsConnecting(false);
@@ -219,7 +224,8 @@ const MessagesPage = () => {
       await channel.watch();
       setActiveChannel(channel);
     } catch (error) {
-      console.error("Error watching channel:", error);
+      // --- [DEBUGGING] Log the full error object for more details ---
+      console.error("🔴 Error watching channel:", error);
       toast.error("Could not open the conversation.");
     }
   };
