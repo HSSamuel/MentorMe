@@ -41,7 +41,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="p-6 bg-yellow-970/60 backdrop-blur-sm rounded-lg shadow-xl w-full max-w-xs m-4">
+    <div className="p-6 bg-yellow-970/60 backdrop-blur-sm rounded-lg shadow-xl w-fit max-w-xs m-4">
       <div className="text-center mb-4">
         <h2 className="text-xl font-bold text-white">Welcome Back</h2>
         <p className="text-gray-300 text-xs">Sign in to your account</p>
@@ -57,7 +57,7 @@ const LoginPage = () => {
           </label>
           <input
             id="email"
-            className="px-3 py-1.5 bg-gray-700/50 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white text-sm"
+            className="px-3 py-1.5 bg-gray-900 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-600 transition text-white text-sm"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -75,14 +75,14 @@ const LoginPage = () => {
             </label>
             <Link
               to="/forgot-password"
-              className="text-xs text-blue-400 hover:text-blue-300"
+              className="text-xs text-blue-200 hover:text-blue-300"
             >
               Forgot Password?
             </Link>
           </div>
           <input
             id="password"
-            className="px-3 py-1.5 bg-gray-700/50 border border-gray-500 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white text-sm"
+            className="px-3 py-1.5 bg-gray-900 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white text-sm"
             type={showPassword ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -93,7 +93,7 @@ const LoginPage = () => {
             <input
               type="checkbox"
               id="showPassword"
-              className="h-3 w-3 text-blue-600 focus:ring-blue-500 border-gray-600 rounded bg-gray-700"
+              className="h-3 w-3 text-blue-900 focus:ring-blue-500 border-gray-600 rounded bg-gray-700"
               checked={showPassword}
               onChange={() => setShowPassword(!showPassword)}
             />
@@ -119,7 +119,7 @@ const LoginPage = () => {
       <div className="flex flex-col gap-2">
         <button
           onClick={() => handleSocialLogin("google")}
-          className="flex items-center justify-center gap-3 w-full px-4 py-1.5 border border-gray-500 rounded-lg text-white font-semibold bg-gray-700/50 hover:bg-gray-700 transition-colors text-sm"
+          className="flex items-center justify-center gap-3 w-full px-4 py-1.5 border border-gray-500 rounded-lg text-white font-semibold bg-gray-900 hover:bg-gray-700 transition-colors text-sm"
         >
           <GoogleIcon />
           Continue with Google

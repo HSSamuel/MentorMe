@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import Video, { LocalVideoTrack, Room, RemoteAudioTrack } from "twilio-video";
+import Video, {
+  LocalVideoTrack,
+  Room,
+  RemoteAudioTrack,
+  RemoteTrack,
+} from "twilio-video";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
@@ -127,24 +132,41 @@ const VideoCallPage = () => {
           type: "success",
         });
 
-        const localParticipant = room.localParticipant;
-        localParticipant.tracks.forEach((publication) => {
-          if (publication.track) {
-            localVideoRef.current?.appendChild(publication.track.attach());
-          }
-        });
+        // Attach local participant's video
+        if (localVideoRef.current) {
+          localVideoRef.current.innerHTML = "";
+          room.localParticipant.tracks.forEach((publication) => {
+            if (publication.track) {
+              localVideoRef.current?.appendChild(publication.track.attach());
+            }
+          });
+        }
 
+        // --- THIS IS THE CORRECTED LOGIC ---
         const handleParticipant = (participant: Video.RemoteParticipant) => {
           setStatus({ message: "Participant connected!", type: "success" });
           if (!sessionStartTime) setSessionStartTime(Date.now());
+
+          // Attach the participant's tracks to the DOM
           participant.tracks.forEach((publication) => {
-            if (publication.track)
-              remoteVideoRef.current?.appendChild(publication.track.attach());
+            if (publication.track && remoteVideoRef.current) {
+              remoteVideoRef.current.appendChild(publication.track.attach());
+            }
           });
-          participant.on("trackSubscribed", (track) =>
-            remoteVideoRef.current?.appendChild(track.attach())
-          );
+
+          // Attach any new tracks that are subscribed later
+          participant.on("trackSubscribed", (track: RemoteTrack) => {
+            if (remoteVideoRef.current) {
+              remoteVideoRef.current.appendChild(track.attach());
+            }
+          });
+
+          // Detach tracks when they are unsubscribed
+          participant.on("trackUnsubscribed", (track: RemoteTrack) => {
+            track.detach().forEach((element) => element.remove());
+          });
         };
+
         room.on("participantConnected", handleParticipant);
         room.participants.forEach(handleParticipant);
         room.on("participantDisconnected", () => {

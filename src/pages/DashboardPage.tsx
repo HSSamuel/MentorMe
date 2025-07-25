@@ -322,43 +322,56 @@ const DashboardPage = () => {
   );
 
   const renderMentorDashboard = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <StatCard
-        title="Your Mentees"
-        value={stats.menteeCount}
-        icon={<UsersIcon />}
-        linkTo="/my-sessions"
-        color="bg-gradient-to-br from-blue-400 to-indigo-500"
-      />
-      <StatCard
-        title="Pending Requests"
-        value={stats.pendingRequests}
-        icon={<InboxInIcon />}
-        linkTo="/requests"
-        color="bg-gradient-to-br from-green-400 to-blue-500"
-        isHighlighted={stats.pendingRequests > 0}
-      />
-      <StatCard
-        title="Upcoming Sessions"
-        value={stats.upcomingSessions}
-        icon={<CalendarIcon />}
-        linkTo="/my-sessions"
-        color="bg-gradient-to-br from-purple-400 to-pink-500"
-      />
-      <StatCard
-        title="Completed Sessions"
-        value={stats.completedSessions}
-        icon={<CalendarIcon />}
-        linkTo="/my-sessions"
-        color="bg-gradient-to-br from-purple-400 to-pink-500"
-      />
-      <StatCard
-        title="Average Rating"
-        value={`${stats.averageRating.toFixed(1)} ★`}
-        icon={<HandshakeIcon />}
-        color="bg-gradient-to-br from-yellow-400 to-orange-500"
-      />
-    </div>
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <StatCard
+          title="Your Mentees"
+          value={stats.menteeCount}
+          icon={<UsersIcon />}
+          linkTo="/my-sessions"
+          color="bg-gradient-to-br from-blue-400 to-indigo-500"
+        />
+        <StatCard
+          title="Pending Requests"
+          value={stats.pendingRequests}
+          icon={<InboxInIcon />}
+          linkTo="/requests"
+          color="bg-gradient-to-br from-green-400 to-blue-500"
+          isHighlighted={stats.pendingRequests > 0}
+        />
+        <StatCard
+          title="Upcoming Sessions"
+          value={stats.upcomingSessions}
+          icon={<CalendarIcon />}
+          linkTo="/my-sessions"
+          color="bg-gradient-to-br from-purple-400 to-pink-500"
+        />
+        <StatCard
+          title="Completed Sessions"
+          value={stats.completedSessions}
+          icon={<CalendarIcon />}
+          linkTo="/my-sessions"
+          color="bg-gradient-to-br from-purple-400 to-pink-500"
+        />
+        <StatCard
+          title="Average Rating"
+          value={`${stats.averageRating.toFixed(1)} ★`}
+          icon={<HandshakeIcon />}
+          color="bg-gradient-to-br from-yellow-400 to-orange-500"
+        />
+      </div>
+      <div className="mt-8 bg-white/70 dark:bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 shadow-lg">
+        <h4 className="font-semibold text-gray-600 dark:text-gray-300">
+          Your Progress
+        </h4>
+        <p className="text-gray-800 dark:text-gray-100">
+          Level: <strong>{user?.level?.name || "Beginner"}</strong>
+        </p>
+        <p className="text-gray-800 dark:text-gray-100">
+          Points: <strong>{user?.points || 0}</strong>
+        </p>
+      </div>
+    </>
   );
 
   const renderMenteeDashboard = () => (
@@ -392,6 +405,18 @@ const DashboardPage = () => {
           linkTo="/my-sessions"
           color="bg-gradient-to-br from-purple-400 to-pink-500"
         />
+      </div>
+
+      <div className="mt-8 bg-white/70 dark:bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 shadow-lg">
+        <h4 className="font-semibold text-gray-600 dark:text-gray-300">
+          Your Progress
+        </h4>
+        <p className="text-gray-800 dark:text-gray-100">
+          Level: <strong>{user?.level?.name || "Beginner"}</strong>
+        </p>
+        <p className="text-gray-800 dark:text-gray-100">
+          Points: <strong>{user?.points || 0}</strong>
+        </p>
       </div>
 
       {recommendedMentors.length > 0 && (
@@ -452,7 +477,7 @@ const DashboardPage = () => {
 
               {user.role && (
                 <span className="inline-block bg-white/20 text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded-full">
-                  You are logged in as {" "}
+                  You are logged in as{" "}
                   {user.role.charAt(0).toUpperCase() +
                     user.role.slice(1).toLowerCase()}
                 </span>

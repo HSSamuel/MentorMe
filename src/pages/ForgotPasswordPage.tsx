@@ -21,8 +21,8 @@ const ForgotPasswordPage = () => {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen">
-      <div className="p-8 bg-yellow-970/60 backdrop-blur-sm rounded-lg shadow-xl w-full max-w-sm m-4">
+    <div className="flex justify-center items-center min-h-fit">
+      <div className="p-8 bg-yellow-970/60 backdrop-blur-sm rounded-lg shadow-xl w-fit max-w-sm m-4">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-white">Forgot Password</h2>
           <p className="text-gray-400">
@@ -53,7 +53,7 @@ const ForgotPasswordPage = () => {
             </div>
             <button
               type="submit"
-              className="w-full px-4 py-2 mt-4 border-none rounded-lg bg-blue-600 text-white font-semibold cursor-pointer transition-colors hover:bg-blue-700"
+              className="w-full px-4 py-2 mt-4 border-none rounded-lg bg-blue-600 text-white font-semibold cursor-pointer transition-colors hover:bg-blue-500"
             >
               Send Reset Link
             </button>

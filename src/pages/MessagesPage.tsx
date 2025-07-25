@@ -133,7 +133,7 @@ const ChatWindow = ({ channel, onBack }) => {
     );
   }
   return (
-    <div className="w-full h-full flex-grow flex flex-col">
+    <div className="w-full h-full flex-grow flex flex-col bg-white dark:bg-gray-900">
       <Channel channel={channel} key={channel.cid}>
         <Window>
           <div className="str-chat__header-livestream dark:bg-gray-800 flex items-center p-2">
@@ -240,7 +240,6 @@ const MessagesPage = () => {
       >
         <div className="flex h-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
           {isMobile ? (
-            // On MOBILE, we render EITHER the list OR the chat window
             activeChannel ? (
               <ChatWindow
                 channel={activeChannel}
@@ -253,7 +252,6 @@ const MessagesPage = () => {
               />
             )
           ) : (
-            // On DESKTOP, we render both side-by-side
             <>
               <div className="w-1/3 max-w-sm flex-shrink-0">
                 <ConversationList

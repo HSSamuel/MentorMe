@@ -5,9 +5,8 @@ import { useTheme } from "../contexts/ThemeContext";
 import NotificationBell from "./NotificationBell";
 import apiClient from "../api/axios";
 import logo from "../assets/logo.png";
-import { io, Socket } from "socket.io-client"; // Import socket.io-client
+import { io, Socket } from "socket.io-client";
 
-// Sun and Moon icons for the toggle button
 const SunIcon = () => (
   <svg
     className="w-6 h-6 text-yellow-300"
@@ -29,7 +28,7 @@ const MoonIcon = () => (
 );
 
 const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
-  const { user, logout, isLoading, token, refetchUser } = useAuth(); // Add refetchUser
+  const { user, logout, isLoading, token, refetchUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -60,7 +59,6 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
     };
   }, [profileRef]);
 
-  // Add this useEffect to handle the real-time avatar update
   useEffect(() => {
     if (token && user) {
       socketRef.current = io(import.meta.env.VITE_API_BASE_URL!, {
@@ -71,7 +69,6 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
         "avatarUpdated",
         ({ userId: updatedUserId }: { userId: string }) => {
           if (user?.id === updatedUserId) {
-            // Refetch user data to get the new avatar URL
             refetchUser();
           }
         }
@@ -82,6 +79,20 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
       };
     }
   }, [token, user, refetchUser]);
+
+  // This new useEffect handles the scroll-to-close functionality
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isMobileMenuOpen) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [isMobileMenuOpen]);
 
   const getAvatarUrl = () => {
     if (!user || !user.profile?.avatarUrl) {
@@ -108,8 +119,6 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
 
     return (
       <>
-        {/* --- [THE FIX] --- */}
-        {/* The regular dashboard is now hidden for Admins */}
         {user.role !== "ADMIN" && (
           <NavLink to="/dashboard" className={linkClass}>
             Dashboard
@@ -141,8 +150,6 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
         )}
         {user.role === "ADMIN" && (
           <>
-            {/* --- [THE FIX] --- */}
-            {/* Added a link to the new Admin Dashboard */}
             <NavLink to="/admin/dashboard" className={linkClass}>
               Dashboard
             </NavLink>
@@ -210,7 +217,6 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
             <div className="hidden md:block">
               {user ? (
                 <div className="ml-4 flex items-center md:ml-6">
-                  {/* Theme Toggle Button */}
                   <button
                     onClick={toggleTheme}
                     className="p-2 rounded-full text-blue-200 hover:bg-blue-600 focus:outline-none"
@@ -324,50 +330,54 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
         )}
       </div>
 
-      {isMobileMenuOpen && (
-        <div className="md:hidden" id="mobile-menu">
-          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white dark:bg-gray-900">
-            {renderNavLinks(true)}
-          </div>
-          {user && (
-            <div className="pt-4 pb-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-              <div className="flex items-center px-5">
-                <img
-                  className="h-10 w-10 rounded-full object-cover"
-                  src={getAvatarUrl()}
-                  alt="User profile"
-                />
-                <div className="ml-3">
-                  <div className="text-base font-medium leading-none text-gray-800 dark:text-white">
-                    {user.profile?.name || user.email.split("@")[0]}
-                  </div>
-                  <div className="text-sm font-medium leading-none text-gray-500 dark:text-gray-400">
-                    {user.email}
-                  </div>
+      {/* --- This section is updated for the transitional mobile menu --- */}
+      <div
+        className={`mobile-menu-container md:hidden ${
+          isMobileMenuOpen ? "open" : ""
+        }`}
+        id="mobile-menu"
+      >
+        <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+          {renderNavLinks(true)}
+        </div>
+        {user && (
+          <div className="pt-4 pb-3 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center px-5">
+              <img
+                className="h-10 w-10 rounded-full object-cover"
+                src={getAvatarUrl()}
+                alt="User profile"
+              />
+              <div className="ml-3">
+                <div className="text-base font-medium leading-none text-gray-800 dark:text-white">
+                  {user.profile?.name || user.email.split("@")[0]}
+                </div>
+                <div className="text-sm font-medium leading-none text-gray-500 dark:text-gray-400">
+                  {user.email}
                 </div>
               </div>
-              <div className="mt-3 px-2 space-y-1">
-                <Link
-                  to="/profile/edit"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Edit Profile
-                </Link>
-                <button
-                  onClick={() => {
-                    logout();
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-500 dark:text-gray-400 hover:bg-red-500 hover:text-white dark:hover:bg-red-600"
-                >
-                  Logout
-                </button>
-              </div>
             </div>
-          )}
-        </div>
-      )}
+            <div className="mt-3 px-2 space-y-1">
+              <Link
+                to="/profile/edit"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Edit Profile
+              </Link>
+              <button
+                onClick={() => {
+                  logout();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-500 dark:text-gray-400 hover:bg-red-500 hover:text-white dark:hover:bg-red-600"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </nav>
   );
 };

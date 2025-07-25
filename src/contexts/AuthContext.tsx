@@ -17,6 +17,7 @@ interface User {
   id: string;
   email: string;
   role: "ADMIN" | "MENTOR" | "MENTEE";
+  points?: number;
   profile?: {
     name?: string;
     bio?: string;
