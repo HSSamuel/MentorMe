@@ -64,7 +64,6 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
       socketRef.current = io(import.meta.env.VITE_API_BASE_URL!, {
         auth: { token },
       });
-
       socketRef.current.on(
         "avatarUpdated",
         ({ userId: updatedUserId }: { userId: string }) => {
@@ -73,26 +72,11 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
           }
         }
       );
-
       return () => {
         socketRef.current?.disconnect();
       };
     }
   }, [token, user, refetchUser]);
-
-  // This new useEffect handles the scroll-to-close functionality
-  useEffect(() => {
-    const handleScroll = () => {
-      if (isMobileMenuOpen) {
-        setIsMobileMenuOpen(false);
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, [isMobileMenuOpen]);
 
   const getAvatarUrl = () => {
     if (!user || !user.profile?.avatarUrl) {
@@ -114,7 +98,6 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
     const mobileLinkClass =
       "block px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700";
     const desktopLinkClass = getNavLinkClass;
-
     const linkClass = isMobile ? () => mobileLinkClass : desktopLinkClass;
 
     return (
@@ -124,7 +107,6 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
             Dashboard
           </NavLink>
         )}
-
         {user.role === "MENTEE" && (
           <>
             <NavLink to="/mentors" className={linkClass}>
@@ -330,54 +312,50 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
         )}
       </div>
 
-      {/* --- This section is updated for the transitional mobile menu --- */}
-      <div
-        className={`mobile-menu-container md:hidden ${
-          isMobileMenuOpen ? "open" : ""
-        }`}
-        id="mobile-menu"
-      >
-        <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-          {renderNavLinks(true)}
-        </div>
-        {user && (
-          <div className="pt-4 pb-3 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center px-5">
-              <img
-                className="h-10 w-10 rounded-full object-cover"
-                src={getAvatarUrl()}
-                alt="User profile"
-              />
-              <div className="ml-3">
-                <div className="text-base font-medium leading-none text-gray-800 dark:text-white">
-                  {user.profile?.name || user.email.split("@")[0]}
-                </div>
-                <div className="text-sm font-medium leading-none text-gray-500 dark:text-gray-400">
-                  {user.email}
+      {isMobileMenuOpen && (
+        <div className="md:hidden" id="mobile-menu">
+          <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white dark:bg-gray-900">
+            {renderNavLinks(true)}
+          </div>
+          {user && (
+            <div className="pt-4 pb-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+              <div className="flex items-center px-5">
+                <img
+                  className="h-10 w-10 rounded-full object-cover"
+                  src={getAvatarUrl()}
+                  alt="User profile"
+                />
+                <div className="ml-3">
+                  <div className="text-base font-medium leading-none text-gray-800 dark:text-white">
+                    {user.profile?.name || user.email.split("@")[0]}
+                  </div>
+                  <div className="text-sm font-medium leading-none text-gray-500 dark:text-gray-400">
+                    {user.email}
+                  </div>
                 </div>
               </div>
+              <div className="mt-3 px-2 space-y-1">
+                <Link
+                  to="/profile/edit"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Edit Profile
+                </Link>
+                <button
+                  onClick={() => {
+                    logout();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-500 dark:text-gray-400 hover:bg-red-500 hover:text-white dark:hover:bg-red-600"
+                >
+                  Logout
+                </button>
+              </div>
             </div>
-            <div className="mt-3 px-2 space-y-1">
-              <Link
-                to="/profile/edit"
-                className="block px-3 py-2 rounded-md text-base font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Edit Profile
-              </Link>
-              <button
-                onClick={() => {
-                  logout();
-                  setIsMobileMenuOpen(false);
-                }}
-                className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-500 dark:text-gray-400 hover:bg-red-500 hover:text-white dark:hover:bg-red-600"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </nav>
   );
 };

@@ -11,20 +11,20 @@
 
 @keyframes rolling-color {
   0% {
-    color: #6366f1;
-  } /* Indigo */
+    color: #6366f1; /* Indigo */
+  }
   25% {
-    color: #8b5cf6;
-  } /* Purple */
+    color: #8b5cf6; /* Purple */
+  }
   50% {
-    color: #ec4899;
-  } /* Pink */
+    color: #ec4899; /* Pink */
+  }
   75% {
-    color: #3b82f6;
-  } /* Blue */
+    color: #3b82f6; /* Blue */
+  }
   100% {
-    color: #6366f1;
-  } /* Back to Indigo */
+    color: #6366f1; /* Back to Indigo */
+  }
 }
 
 .animate-rolling-color {
@@ -32,7 +32,6 @@
 }
 
 .gradient-background {
-  /* This class can now be removed from pages if a solid theme color is preferred */
   background-image: linear-gradient(to top, #f3e8ff, #e0e7ff, #ffffff);
 }
 
@@ -44,9 +43,9 @@ body {
 /* General container for the video call page */
 .video-call-container {
   padding: 1.5rem;
-  background-color: #f8f9fa; /* A light grey, similar to many dashboards */
+  background-color: #f8f9fa;
   min-height: 100vh;
-  font-family: 'Inter', sans-serif; /* Use the same font as your dashboard */
+  font-family: "Inter", sans-serif;
 }
 
 /* Header and Status text */
@@ -59,7 +58,7 @@ body {
 .video-call-status {
   color: #4a5568;
   margin-bottom: 1.5rem;
-  min-height: 24px; /* Prevents layout shift as status text changes */
+  min-height: 24px;
 }
 
 /* Main grid for video streams */
@@ -81,7 +80,8 @@ body {
   background-color: #ffffff;
   border-radius: 0.75rem;
   padding: 1rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.1);
   position: relative;
 }
 
@@ -100,19 +100,19 @@ body {
 
 /* 'Start Camera' button overlay */
 .start-camera-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: rgba(0, 0, 0, 0.5);
-    border-radius: 0.75rem;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 0.75rem;
 }
 
 .start-camera-button {
   padding: 0.75rem 1.5rem;
   color: white;
-  background-color: #3b82f6; /* Your brand's primary blue */
+  background-color: #3b82f6;
   border: none;
   border-radius: 0.5rem;
   font-size: 1rem;
@@ -122,7 +122,7 @@ body {
 }
 
 .start-camera-button:hover {
-    background-color: #2563eb; /* A slightly darker blue for hover */
+  background-color: #2563eb;
 }
 
 /* Control bar for mute/video buttons */
@@ -144,23 +144,9 @@ body {
 }
 
 .control-button.active {
-    background-color: #3b82f6; /* Blue for active states */
+  background-color: #3b82f6;
 }
 
 .control-button.inactive {
-    background-color: #dc2626; /* Red for inactive/muted states */
-}
-
-/* --- Added styles for the transitional and responsive mobile menu --- */
-.mobile-menu-container {
-  transform: translateY(-100%);
-  transition: transform 0.3s ease-in-out;
-  position: absolute;
-  left: 0;
-  right: 0;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-}
-
-.mobile-menu-container.open {
-  transform: translateY(0);
+  background-color: #dc2626;
 }
