@@ -40,7 +40,10 @@ const MentorListPage = () => {
 
       // --- Conditional mentor fetching based on viewMode ---
       if (viewMode === "recommended") {
-        const mentorsRes = await apiClient.get("/ai/matches");
+        // --- THIS IS THE FIX ---
+        // Updated the endpoint to match the backend controller
+        const mentorsRes = await apiClient.get("/users/mentors/recommended");
+        // --------------------
         setMentors(mentorsRes.data);
         setFilteredMentors(mentorsRes.data); // Directly set the mentors list
         setTotalPages(1); // Recommendations are a single page
@@ -95,6 +98,9 @@ const MentorListPage = () => {
         );
       }
       setFilteredMentors(result);
+    } else {
+      // When in recommended view, always show the full recommended list
+      setFilteredMentors(mentors);
     }
   }, [selectedSkill, searchQuery, minExperience, language, mentors, viewMode]);
 

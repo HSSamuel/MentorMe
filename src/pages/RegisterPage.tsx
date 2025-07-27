@@ -4,6 +4,18 @@ import apiClient from "../api/axios";
 import { useAuth } from "../contexts/AuthContext";
 import { GoogleIcon, FacebookIcon } from "../components/SocialIcons";
 
+// --- [NEW] LinkedIn Icon Component ---
+const LinkedInIcon = () => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    className="w-5 h-5"
+    fill="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z" />
+  </svg>
+);
+
 // A simple spinner component
 const Spinner = () => (
   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -51,7 +63,7 @@ const RegisterPage = () => {
     }
   };
 
-  const handleSocialLogin = (provider: "google" | "facebook") => {
+  const handleSocialLogin = (provider: "google" | "linkedin") => {
     window.location.href = `${apiClient.defaults.baseURL}/auth/${provider}`;
   };
 
@@ -78,11 +90,11 @@ const RegisterPage = () => {
           Sign up with Google
         </button>
         <button
-          onClick={() => handleSocialLogin("facebook")}
-          className="flex items-center justify-center gap-3 w-full px-4 py-1.5 border-none rounded-lg text-white font-semibold bg-[#1877F2] hover:bg-[#166eab] transition-colors text-sm"
+          onClick={() => handleSocialLogin("linkedin")}
+          className="flex items-center justify-center gap-3 w-full px-4 py-1.5 border-none rounded-lg text-white font-semibold bg-[#0077B5] hover:bg-[#005582] transition-colors text-sm"
         >
-          <FacebookIcon />
-          Sign up with Facebook
+          <LinkedInIcon />
+          Sign up with LinkedIn
         </button>
       </div>
 
@@ -138,18 +150,39 @@ const RegisterPage = () => {
           </div>
         </div>
         <div className="flex flex-col">
-          <label className="font-semibold text-gray-300 text-xs" htmlFor="role">
+          <label className="font-semibold text-gray-200 text-sm mb-2">
             I am a:
           </label>
-          <select
-            id="role"
-            className="px-3 py-1.5 bg-gray-900 border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-white text-sm"
-            value={role}
-            onChange={(e) => setRole(e.target.value as "MENTEE" | "MENTOR")}
-          >
-            <option value="MENTEE">Mentee (Looking for guidance)</option>
-            <option value="MENTOR">Mentor (Want to provide guidance)</option>
-          </select>
+          <div className="role-selector">
+            <input
+              type="radio"
+              id="role-mentee"
+              name="role"
+              value="MENTEE"
+              checked={role === "MENTEE"}
+              onChange={() => setRole("MENTEE")}
+            />
+            <label htmlFor="role-mentee" className="role-option">
+              <span className="role-title">Mentee</span>
+              {/* Added parentheses for consistency with the original design */}
+              <span className="role-description">(Looking for guidance)</span>
+            </label>
+
+            <input
+              type="radio"
+              id="role-mentor"
+              name="role"
+              value="MENTOR"
+              checked={role === "MENTOR"}
+              onChange={() => setRole("MENTOR")}
+            />
+            <label htmlFor="role-mentor" className="role-option">
+              <span className="role-title">Mentor</span>
+              <span className="role-description">
+                (Want to provide guidance)
+              </span>
+            </label>
+          </div>
         </div>
         {error && <p className="text-red-400 text-center text-xs">{error}</p>}
         {success && (

@@ -94,7 +94,7 @@ const ConversationList = ({ connections, onSelectConversation }) => {
 };
 
 // --- A component dedicated to showing the chat window ---
-const ChatWindow = ({ channel, onBack }) => {
+const ChatWindow = ({ channel, onBack, icebreakers, onDismissIcebreakers }) => {
   const { user } = useAuth();
   if (!channel) {
     return (
@@ -150,6 +150,24 @@ const ChatWindow = ({ channel, onBack }) => {
               <ChannelHeader />
             </div>
           </div>
+          {icebreakers.length > 0 && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-800">
+              <h4 className="font-semibold text-sm text-blue-800 dark:text-blue-200">
+                Suggested Icebreakers:
+              </h4>
+              <ul className="list-disc list-inside mt-1 text-xs text-blue-700 dark:text-blue-300">
+                {icebreakers.map((q, i) => (
+                  <li key={i}>{q}</li>
+                ))}
+              </ul>
+              <button
+                onClick={onDismissIcebreakers}
+                className="text-xs text-gray-500 dark:text-gray-400 mt-2 hover:underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
           <MessageList />
           <MessageInput />
         </Window>
@@ -167,6 +185,8 @@ const MessagesPage = () => {
   const [activeChannel, setActiveChannel] = useState<StreamChannel | null>(
     null
   );
+  const [icebreakers, setIcebreakers] = useState<string[]>([]);
+  const [showIcebreakers, setShowIcebreakers] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   useEffect(() => {
@@ -212,12 +232,28 @@ const MessagesPage = () => {
 
   const selectConnection = async (otherUserId: string) => {
     if (!chatClient || !user?.id) return;
+    setShowIcebreakers(false); // Reset on new selection
+    setIcebreakers([]);
     try {
       const channel = chatClient.channel("messaging", {
         members: [user.id, otherUserId],
       });
       await channel.watch();
       setActiveChannel(channel);
+
+      if (channel.data?.mentorshipId && user.role === "MENTOR") {
+        try {
+          const res = await apiClient.get(
+            `/ai/icebreakers/${channel.data.mentorshipId}`
+          );
+          if (res.data.icebreakers?.length > 0) {
+            setIcebreakers(res.data.icebreakers);
+            setShowIcebreakers(true);
+          }
+        } catch (icebreakerError) {
+          console.error("Could not fetch icebreakers:", icebreakerError);
+        }
+      }
     } catch (error) {
       console.error("Error watching channel:", error);
       toast.error("Could not open the conversation.");
@@ -244,6 +280,8 @@ const MessagesPage = () => {
               <ChatWindow
                 channel={activeChannel}
                 onBack={() => setActiveChannel(null)}
+                icebreakers={showIcebreakers ? icebreakers : []}
+                onDismissIcebreakers={() => setShowIcebreakers(false)}
               />
             ) : (
               <ConversationList
@@ -263,6 +301,8 @@ const MessagesPage = () => {
                 <ChatWindow
                   channel={activeChannel}
                   onBack={() => setActiveChannel(null)}
+                  icebreakers={showIcebreakers ? icebreakers : []}
+                  onDismissIcebreakers={() => setShowIcebreakers(false)}
                 />
               </div>
             </>

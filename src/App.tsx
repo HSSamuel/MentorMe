@@ -1,5 +1,4 @@
 import React, { Suspense } from "react";
-// --- [MODIFIED] Added useParams for the redirect helper ---
 import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -44,12 +43,11 @@ const GoalsPage = React.lazy(() => import("./pages/GoalsPage"));
 const SessionInsightsPage = React.lazy(
   () => import("./pages/SessionInsightsPage")
 );
-// --- [NEW] Lazily import the new Admin Dashboard page ---
 const AdminDashboardPage = React.lazy(
   () => import("./pages/AdminDashboardPage")
 );
 
-// --- This helper component is now correctly used ---
+// This helper component correctly handles the redirect
 const MentorRedirect = () => {
   const { id } = useParams();
   return <Navigate to={`/users/${id}`} replace />;
@@ -81,10 +79,10 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/mentor/:id"
-            element={<Navigate to="/users/:id" replace />}
-          />
+          {/* --- [THIS IS THE FIX] --- */}
+          {/* The route now correctly uses the MentorRedirect component */}
+          <Route path="/mentor/:id" element={<MentorRedirect />} />
+          {/* --- END OF FIX --- */}
 
           {/* Protected Routes */}
           <Route
@@ -200,7 +198,7 @@ function App() {
             }
           />
 
-          {/* --- [ENHANCED] Admin Routes --- */}
+          {/* Admin Routes */}
           <Route
             path="/admin/dashboard"
             element={

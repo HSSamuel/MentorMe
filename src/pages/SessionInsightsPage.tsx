@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import apiClient from "../api/axios";
 import { useAuth } from "../contexts/AuthContext";
-import { BookOpen, ListChecks, ArrowLeft } from "lucide-react"; // Using better icons
+import { BookOpen, ListChecks, ArrowLeft, Tag } from "lucide-react"; // Added Tag icon
 
 // --- Helper Icons ---
 const SummaryIcon = () => (
@@ -72,7 +72,7 @@ const InsightsSkeletonLoader = () => (
   </div>
 );
 
-// --- [UPDATED] Simplified interface for the session data ---
+// --- [UPDATED] Interface to include keyTopics ---
 interface SessionData {
   id: string;
   date: string;
@@ -80,13 +80,13 @@ interface SessionData {
   mentee: { profile?: { name?: string } };
   insights: {
     summary: string;
+    keyTopics: string[]; // Added keyTopics
     actionItems: string[];
   } | null;
 }
 
 const SessionInsightsPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
-  // --- [UPDATED] Simplified state to hold the entire session object ---
   const [session, setSession] = useState<SessionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +99,6 @@ const SessionInsightsPage = () => {
         return;
       }
       try {
-        // --- [UPDATED] Now makes a single, efficient API call ---
         const response = await apiClient.get(`/sessions/${sessionId}/insights`);
         setSession(response.data);
       } catch (err: any) {
@@ -139,7 +138,6 @@ const SessionInsightsPage = () => {
       );
     }
 
-    // --- [UPDATED] Checks for the nested 'insights' object ---
     if (!session.insights) {
       return (
         <div className="bg-blue-50 dark:bg-gray-800 p-8 rounded-xl shadow-md border border-blue-200 dark:border-blue-800 text-center">
@@ -172,6 +170,30 @@ const SessionInsightsPage = () => {
             {session.insights.summary}
           </p>
         </div>
+
+        {/* --- [THIS IS THE NEW SECTION] --- */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="bg-purple-100 dark:bg-purple-900/50 p-2 rounded-full">
+              <Tag className="w-6 h-6 text-purple-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Key Topics
+            </h2>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {session.insights.keyTopics?.map((topic, index) => (
+              <span
+                key={index}
+                className="bg-purple-100 text-purple-800 text-sm font-medium px-3 py-1 rounded-full dark:bg-purple-900/70 dark:text-purple-300"
+              >
+                {topic}
+              </span>
+            ))}
+          </div>
+        </div>
+        {/* --- END OF NEW SECTION --- */}
+
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-4 mb-4">
             <div className="bg-green-100 dark:bg-green-900/50 p-2 rounded-full">

@@ -12,6 +12,8 @@ interface Mentor {
     skills: string[];
     avatarUrl?: string;
   };
+  // Add the optional matchScore property
+  matchScore?: number;
 }
 
 const MentorCard = ({ mentor }: { mentor: Mentor }) => {
@@ -50,6 +52,13 @@ const MentorCard = ({ mentor }: { mentor: Mentor }) => {
   return (
     <div className="group relative block h-full bg-white dark:bg-gray-800 before:absolute before:inset-0 before:rounded-xl before:border-2 before:border-dashed before:border-gray-900 dark:before:border-gray-100">
       <div className="h-full rounded-xl border-2 border-gray-900 dark:border-gray-100 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 dark:from-blue-900/50 dark:via-purple-900/50 dark:to-pink-900/50 p-6 transition group-hover:-translate-y-2 group-hover:-translate-x-2">
+        {/* This is the new Match Score badge */}
+        {mentor.matchScore && (
+          <div className="absolute top-0 right-0 mt-4 mr-4 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full shadow-md">
+            {Math.round(mentor.matchScore * 100)}% Match
+          </div>
+        )}
+
         <div className="flex flex-col items-center text-center">
           {/* Avatar */}
           <img
