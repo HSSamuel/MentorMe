@@ -249,29 +249,45 @@ const DashboardPage = () => {
     </div>
   );
 
-  const NextSessionCard = () => (
-    <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl shadow-lg p-8 my-8">
-      <h3 className="text-xl font-bold mb-2">Next Upcoming Session</h3>
-      <p className="text-lg">
-        With{" "}
-        {user?.role === "MENTOR"
-          ? nextSession.mentee.profile.name
-          : nextSession.mentor.profile.name}
-      </p>
-      <p className="text-2xl font-semibold my-2">
-        {new Date(nextSession.date).toLocaleString([], {
-          dateStyle: "full",
-          timeStyle: "short",
-        })}
-      </p>
-      <Link
-        to="/my-sessions"
-        className="mt-4 inline-block px-6 py-2 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-gray-100"
-      >
-        View Session Details
-      </Link>
-    </div>
-  );
+  const NextSessionCard = () => {
+    // --- UPDATE: Add conditional styling and content for different session types ---
+    const isGroupSession = nextSession.isGroupSession;
+    const cardColor = isGroupSession
+      ? "bg-gradient-to-r from-purple-500 to-pink-500"
+      : "bg-gradient-to-r from-blue-500 to-indigo-600";
+
+    const otherPersonName =
+      user?.role === "MENTOR"
+        ? nextSession.mentee?.profile?.name
+        : nextSession.mentor?.profile?.name;
+
+    return (
+      <div className={`${cardColor} text-white rounded-xl shadow-lg p-8 my-8`}>
+        <h3 className="text-xl font-bold mb-2">Next Upcoming Session</h3>
+        {isGroupSession ? (
+          <p className="text-lg">
+            Mentoring Circle: <strong>{nextSession.topic}</strong>
+          </p>
+        ) : (
+          <p className="text-lg">
+            With <strong>{otherPersonName || "your counterpart"}</strong>
+          </p>
+        )}
+        <p className="text-2xl font-semibold my-2">
+          {new Date(nextSession.date).toLocaleString([], {
+            dateStyle: "full",
+            timeStyle: "short",
+          })}
+        </p>
+        <Link
+          to="/my-sessions"
+          className="mt-4 inline-block px-6 py-2 bg-white text-indigo-600 rounded-lg font-semibold hover:bg-gray-100"
+        >
+          View Session Details
+        </Link>
+      </div>
+    );
+  };
 
   const renderAdminDashboard = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useAuth } from "../contexts/AuthContext";
 import apiClient from "../api/axios";
+import { Link } from "react-router-dom";
 import {
   Calendar,
   User,
@@ -11,18 +13,22 @@ import {
   ChevronDown,
   Eye,
 } from "lucide-react";
-import io from "socket.io-client"; // 1. Import the socket.io client
-import { useAuth } from "../contexts/AuthContext"; // 2. Import useAuth to get the token
+import io from "socket.io-client";
 
-// --- Define a more specific type for a Session for better code quality ---
+// --- UPDATE: Expanded Session interface to support group sessions ---
 interface Session {
   id: string;
   mentor: { profile?: { name?: string } };
-  mentee: { profile?: { name?: string } };
+  mentee: { profile?: { name?: string } } | null; // Mentee can be null for group sessions
   date: string;
   status: "UPCOMING" | "COMPLETED" | "CANCELLED";
   rating?: number;
   feedback?: string;
+  isGroupSession?: boolean;
+  topic?: string;
+  participants?: any[];
+  maxParticipants?: number;
+  totalCount?: number; // For real-time updates
 }
 
 // --- A dedicated modal to display existing feedback ---
@@ -141,33 +147,28 @@ const AdminSessionsPage = () => {
   }, []);
 
   // --- [REAL-TIME UPDATE] ---
-  // This new useEffect sets up the WebSocket listener for real-time updates.
   useEffect(() => {
     if (token) {
       const socket = io(import.meta.env.VITE_API_BASE_URL!, {
         auth: { token },
       });
 
-      // Listen for 'sessionUpdated' events from the backend
       socket.on("sessionUpdated", (updatedSession: Session) => {
         setAllSessions((prevSessions) =>
           prevSessions.map((session) =>
             session.id === updatedSession.id ? updatedSession : session
           )
         );
-        // Also update the total count if it's part of the event data
         if (updatedSession.totalCount) {
           setTotalCount(updatedSession.totalCount);
         }
       });
 
-      // Listen for 'newSession' events from the backend
       socket.on("newSession", (newSession: Session) => {
         setAllSessions((prevSessions) => [newSession, ...prevSessions]);
         setTotalCount((prevCount) => prevCount + 1);
       });
 
-      // Disconnect the socket when the component unmounts
       return () => {
         socket.disconnect();
       };
@@ -181,11 +182,15 @@ const AdminSessionsPage = () => {
           return false;
         }
         if (searchTerm) {
+          const lowerCaseSearch = searchTerm.toLowerCase();
           const mentorName = session.mentor.profile?.name?.toLowerCase() || "";
-          const menteeName = session.mentee.profile?.name?.toLowerCase() || "";
+          // --- FIX: Safely check mentee name and also check group session topic ---
+          const menteeName = session.mentee?.profile?.name?.toLowerCase() || "";
+          const topic = session.topic?.toLowerCase() || "";
           return (
-            mentorName.includes(searchTerm.toLowerCase()) ||
-            menteeName.includes(searchTerm.toLowerCase())
+            mentorName.includes(lowerCaseSearch) ||
+            menteeName.includes(lowerCaseSearch) ||
+            topic.includes(lowerCaseSearch)
           );
         }
         return true;
@@ -246,7 +251,7 @@ const AdminSessionsPage = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search by mentor or mentee name..."
+            placeholder="Search by mentor, mentee, or topic..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500"
@@ -302,15 +307,36 @@ const AdminSessionsPage = () => {
                     </div>
                   </div>
                   <div className="space-y-3 text-sm">
-                    <p className="font-semibold text-gray-800 dark:text-gray-200">
-                      <span className="font-bold">
-                        {session.mentor.profile?.name || "N/A"}
-                      </span>{" "}
-                      &amp;{" "}
-                      <span className="font-bold">
-                        {session.mentee.profile?.name || "N/A"}
-                      </span>
-                    </p>
+                    {/* --- FIX: Conditional rendering for session participants --- */}
+                    {session.isGroupSession ? (
+                      <p className="font-semibold text-gray-800 dark:text-gray-200">
+                        <span className="font-bold text-purple-600 dark:text-purple-400">
+                          Circle: {session.topic || "Group Session"}
+                        </span>
+                        <br />
+                        <span className="font-normal">
+                          Hosted by{" "}
+                          <strong>
+                            {session.mentor.profile?.name || "N/A"}
+                          </strong>
+                        </span>
+                        <br />
+                        <span className="font-normal text-xs">
+                          ({session.participants?.length || 0} /{" "}
+                          {session.maxParticipants} participants)
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="font-semibold text-gray-800 dark:text-gray-200">
+                        <span className="font-bold">
+                          {session.mentor.profile?.name || "N/A"}
+                        </span>{" "}
+                        &amp;{" "}
+                        <span className="font-bold">
+                          {session.mentee?.profile?.name || "N/A"}
+                        </span>
+                      </p>
+                    )}
                     <p className="flex items-center text-gray-500 dark:text-gray-400">
                       <Calendar size={14} className="mr-2" />
                       {new Date(session.date).toLocaleString([], {

@@ -72,15 +72,17 @@ const InsightsSkeletonLoader = () => (
   </div>
 );
 
-// --- [UPDATED] Interface to include keyTopics ---
+// --- [UPDATED] Interface to support both 1-on-1 and group sessions ---
 interface SessionData {
   id: string;
   date: string;
   mentor: { profile?: { name?: string } };
-  mentee: { profile?: { name?: string } };
+  mentee: { profile?: { name?: string } } | null; // Mentee can be null
+  isGroupSession?: boolean; // New field for group sessions
+  topic?: string; // New field for group session topic
   insights: {
     summary: string;
-    keyTopics: string[]; // Added keyTopics
+    keyTopics: string[];
     actionItems: string[];
   } | null;
 }
@@ -238,18 +240,31 @@ const SessionInsightsPage = () => {
           <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white">
             AI-Powered Session Insights
           </h1>
-          {!isLoading && session && (
-            <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
-              A summary of your session with{" "}
-              <strong>{session.mentor.profile?.name || "N/A"}</strong> &{" "}
-              <strong>{session.mentee.profile?.name || "N/A"}</strong> on{" "}
-              {new Date(session.date).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </p>
-          )}
+          {!isLoading &&
+            session &&
+            // --- FIX: Conditionally render header for group or 1-on-1 sessions ---
+            (session.isGroupSession ? (
+              <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
+                A summary of your Mentoring Circle on{" "}
+                <strong>{session.topic}</strong>, held on{" "}
+                {new Date(session.date).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </p>
+            ) : (
+              <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">
+                A summary of your session with{" "}
+                <strong>{session.mentor.profile?.name || "N/A"}</strong> &{" "}
+                <strong>{session.mentee?.profile?.name || "N/A"}</strong> on{" "}
+                {new Date(session.date).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </p>
+            ))}
         </div>
       </div>
       {renderContent()}

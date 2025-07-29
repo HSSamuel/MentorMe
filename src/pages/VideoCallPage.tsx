@@ -5,6 +5,8 @@ import Video, {
   Room,
   RemoteAudioTrack,
   RemoteTrack,
+  RemoteParticipant,
+  Participant,
 } from "twilio-video";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "../contexts/AuthContext";
@@ -54,6 +56,51 @@ const SessionTimer = ({ startTime }: { startTime: number }) => {
   );
 };
 
+// --- NEW: Component to render each remote participant ---
+const ParticipantComponent = ({
+  participant,
+}: {
+  participant: RemoteParticipant;
+}) => {
+  const videoRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const trackSubscribed = (track: RemoteTrack) => {
+      if (track.kind === "video") {
+        videoRef.current?.appendChild(track.attach());
+      } else if (track.kind === "audio") {
+        audioRef.current?.appendChild(track.attach());
+      }
+    };
+
+    const trackUnsubscribed = (track: RemoteTrack) => {
+      track.detach().forEach((element) => element.remove());
+    };
+
+    participant.on("trackSubscribed", trackSubscribed);
+    participant.on("trackUnsubscribed", trackUnsubscribed);
+
+    participant.tracks.forEach((publication) => {
+      if (publication.track) {
+        trackSubscribed(publication.track as RemoteTrack);
+      }
+    });
+
+    return () => {
+      participant.removeAllListeners();
+    };
+  }, [participant]);
+
+  return (
+    <div className="video-participant-container">
+      <div ref={videoRef} className="video-feed" />
+      <div ref={audioRef} />
+      <div className="video-label">{participant.identity}</div>
+    </div>
+  );
+};
+
 const VideoCallPage = () => {
   const { theme } = useTheme();
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -68,9 +115,10 @@ const VideoCallPage = () => {
     type: "info",
   });
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
+  // --- UPDATE: State to hold all remote participants ---
+  const [participants, setParticipants] = useState<RemoteParticipant[]>([]);
 
   const localVideoRef = useRef<HTMLDivElement>(null);
-  const remoteVideoRef = useRef<HTMLDivElement>(null);
   const dataSocketRef = useRef<Socket | null>(null);
 
   // --- Feature States ---
@@ -128,7 +176,7 @@ const VideoCallPage = () => {
         videoRoom = room;
         setRoom(room);
         setStatus({
-          message: "Joined room. Waiting for other participant...",
+          message: "Joined room. Waiting for other participant(s)...",
           type: "success",
         });
 
@@ -136,43 +184,36 @@ const VideoCallPage = () => {
         if (localVideoRef.current) {
           localVideoRef.current.innerHTML = "";
           room.localParticipant.tracks.forEach((publication) => {
-            if (publication.track) {
+            if (publication.track && publication.track.kind === "video") {
               localVideoRef.current?.appendChild(publication.track.attach());
             }
           });
         }
 
-        // --- THIS IS THE CORRECTED LOGIC ---
-        const handleParticipant = (participant: Video.RemoteParticipant) => {
-          setStatus({ message: "Participant connected!", type: "success" });
+        // --- UPDATE: Handle multiple participants ---
+        setParticipants(Array.from(room.participants.values()));
+
+        const handleParticipantConnected = (participant: RemoteParticipant) => {
+          setParticipants((prevParticipants) => [
+            ...prevParticipants,
+            participant,
+          ]);
+          setStatus({ message: "A participant has joined!", type: "success" });
           if (!sessionStartTime) setSessionStartTime(Date.now());
-
-          // Attach the participant's tracks to the DOM
-          participant.tracks.forEach((publication) => {
-            if (publication.track && remoteVideoRef.current) {
-              remoteVideoRef.current.appendChild(publication.track.attach());
-            }
-          });
-
-          // Attach any new tracks that are subscribed later
-          participant.on("trackSubscribed", (track: RemoteTrack) => {
-            if (remoteVideoRef.current) {
-              remoteVideoRef.current.appendChild(track.attach());
-            }
-          });
-
-          // Detach tracks when they are unsubscribed
-          participant.on("trackUnsubscribed", (track: RemoteTrack) => {
-            track.detach().forEach((element) => element.remove());
-          });
         };
 
-        room.on("participantConnected", handleParticipant);
-        room.participants.forEach(handleParticipant);
-        room.on("participantDisconnected", () => {
-          setStatus({ message: "The other user has left.", type: "info" });
-          if (remoteVideoRef.current) remoteVideoRef.current.innerHTML = "";
-        });
+        const handleParticipantDisconnected = (
+          participant: RemoteParticipant
+        ) => {
+          setParticipants((prevParticipants) =>
+            prevParticipants.filter((p) => p !== participant)
+          );
+          setStatus({ message: "A participant has left.", type: "info" });
+        };
+
+        room.on("participantConnected", handleParticipantConnected);
+        room.on("participantDisconnected", handleParticipantDisconnected);
+        // --- END OF UPDATE ---
       })
       .catch((error) =>
         setStatus({
@@ -197,21 +238,22 @@ const VideoCallPage = () => {
     };
   }, [videoToken, sessionId, authToken, sessionStartTime]);
 
-  // --- This effect triggers the notification to the mentor ---
+  // --- This effect triggers the notification to other participants ---
   useEffect(() => {
-    if (room && user?.role === "MENTEE" && !notificationSentRef.current) {
+    if (room && !notificationSentRef.current) {
       notificationSentRef.current = true;
 
+      // Use the new, more generic notification endpoint
       axios
         .post(`/sessions/${sessionId}/notify-call`)
         .then(() => {
           toast.success(
-            "Your mentor has been notified that you've joined the call."
+            "Other participants have been notified that you've joined the call."
           );
         })
         .catch((error) => {
           console.error("Failed to send call notification:", error);
-          toast.error("Could not notify your mentor.");
+          toast.error("Could not notify other participants.");
         });
     }
   }, [room, user, sessionId]);
@@ -392,20 +434,24 @@ const VideoCallPage = () => {
       </p>
 
       <div className={`video-main-area ${getStatusClasses(status.type)}`}>
-        <div className="video-grid-container">
-          <div className="video-participant-container">
-            <div ref={remoteVideoRef} className="video-feed" />
-            <div className="video-label">
-              {user?.role === "MENTEE" ? "Mentor" : "Mentee"}
-            </div>
-          </div>
+        {/* --- UPDATE: Dynamic video grid for all participants --- */}
+        <div
+          className={`video-grid-container grid-size-${
+            participants.length + 1
+          }`}
+        >
           <div className="video-participant-container">
             <div ref={localVideoRef} className="video-feed" />
-            <div className="video-label">
-              {user?.role === "MENTEE" ? "You (Mentee)" : "You (Mentor)"}
-            </div>
+            <div className="video-label">{user?.profile?.name || "You"}</div>
           </div>
+          {participants.map((participant) => (
+            <ParticipantComponent
+              key={participant.sid}
+              participant={participant}
+            />
+          ))}
         </div>
+        {/* --- END OF UPDATE --- */}
 
         <SharedNotepad
           isOpen={isNotepadOpen}

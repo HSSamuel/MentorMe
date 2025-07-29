@@ -23,6 +23,12 @@ const SetAvailabilityPage = () => {
   const [availability, setAvailability] = useState<AvailabilityBlock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // --- NEW STATE FOR GROUP SESSIONS ---
+  const [topic, setTopic] = useState("");
+  const [sessionTime, setSessionTime] = useState("");
+  const [maxParticipants, setMaxParticipants] = useState(5);
+  // --- END OF NEW STATE ---
+
   // --- Data Fetching ---
   const fetchAvailability = useCallback(async () => {
     setIsLoading(true);
@@ -141,7 +147,37 @@ const SetAvailabilityPage = () => {
     });
   };
 
+  // --- NEW: Handler for creating a group session ---
+  const handleGroupSessionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!topic || !sessionTime || !maxParticipants) {
+      toast.error("Please fill out all fields for the group session.");
+      return;
+    }
+
+    const promise = apiClient.post("/sessions/group", {
+      topic,
+      sessionTime,
+      maxParticipants,
+      isGroupSession: true,
+    });
+
+    toast.promise(promise, {
+      loading: "Scheduling your Mentoring Circle...",
+      success: () => {
+        setTopic("");
+        setSessionTime("");
+        setMaxParticipants(5);
+        return "Group session scheduled successfully!";
+      },
+      error: (err) =>
+        err.response?.data?.message ||
+        "Failed to schedule group session. Please try again.",
+    });
+  };
+
   const handleClearAll = async () => {
+    // This confirmation dialog is a valid use case that doesn't get blocked by browser pop-up blockers.
     if (
       window.confirm(
         "Are you sure you want to clear your entire weekly availability?"
@@ -169,7 +205,7 @@ const SetAvailabilityPage = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Form for setting availability */}
+      {/* Form for setting weekly 1-on-1 availability */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-0">
           Set Your Weekly Availability
@@ -184,8 +220,9 @@ const SetAvailabilityPage = () => {
 
       <div className="bg-white dark:bg-gray-800 p-4 sm:p-8 rounded-lg shadow-lg space-y-6">
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Define blocks of time when you are typically available for mentorship
-          sessions each week. You can add multiple blocks to accommodate breaks.
+          Define blocks of time when you are typically available for 1-on-1
+          mentorship sessions each week. You can add multiple blocks to
+          accommodate breaks.
         </p>
 
         {availability.length === 0 && !isLoading && (
@@ -282,6 +319,83 @@ const SetAvailabilityPage = () => {
             </div>
           </>
         )}
+      </div>
+
+      {/* --- NEW SECTION: Form for creating a group session --- */}
+      <div className="mt-12">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+          Create a Mentoring Circle
+        </h2>
+        <form
+          onSubmit={handleGroupSessionSubmit}
+          className="bg-white dark:bg-gray-800 p-4 sm:p-8 rounded-lg shadow-lg space-y-4"
+        >
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Schedule a one-time group session on a specific topic. Mentees with
+            similar interests will be able to join your circle.
+          </p>
+          <div>
+            <label
+              htmlFor="topic"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+            >
+              Session Topic
+            </label>
+            <input
+              type="text"
+              id="topic"
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="e.g., UI/UX Design Portfolio Review"
+              className="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+              required
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="sessionTime"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Date and Time
+              </label>
+              <input
+                type="datetime-local"
+                id="sessionTime"
+                value={sessionTime}
+                onChange={(e) => setSessionTime(e.target.value)}
+                className="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                required
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="maxParticipants"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                Max Participants
+              </label>
+              <input
+                type="number"
+                id="maxParticipants"
+                value={maxParticipants}
+                onChange={(e) => setMaxParticipants(parseInt(e.target.value))}
+                min="2"
+                max="10"
+                className="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                required
+              />
+            </div>
+          </div>
+          <div className="text-right">
+            <button
+              type="submit"
+              className="px-6 py-2 border-none rounded-lg bg-green-600 text-white font-semibold cursor-pointer transition-colors hover:bg-green-700"
+            >
+              Schedule Circle
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

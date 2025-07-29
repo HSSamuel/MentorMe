@@ -28,7 +28,7 @@
 
 .video-main-area {
   width: 100%;
-  max-width: 1200px; 
+  max-width: 1200px;
   margin: 1rem auto;
   aspect-ratio: 16 / 9;
   position: relative;
@@ -39,15 +39,36 @@
   display: flex;
 }
 
-/* --- Layouts for Side-by-Side View --- */
+/* --- UPDATE: Modified for a flexible, dynamic grid --- */
 .video-grid-container {
   flex-grow: 1;
-  display: grid; /* Grid for equal columns */
-  grid-template-columns: repeat(2, 1fr); /* Two equal columns */
-  gap: 8px; /* Small gap between videos */
+  display: grid;
+  gap: 8px;
   padding: 8px;
   background-color: #000;
+  width: 100%;
+  height: 100%;
 }
+
+/* --- NEW: Dynamic grid classes for different participant counts --- */
+.grid-size-1 {
+  grid-template-columns: 1fr;
+}
+.grid-size-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.grid-size-3,
+.grid-size-4 {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}
+.grid-size-5,
+.grid-size-6 {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}
+/* Add more for larger groups if needed, e.g., .grid-size-7, .grid-size-8 */
+
 
 .video-participant-container {
   width: 100%;
@@ -62,8 +83,8 @@
 }
 
 .video-feed {
-    width: 100%;
-    height: 100%;
+  width: 100%;
+  height: 100%;
 }
 
 .video-feed video {
@@ -73,18 +94,18 @@
 }
 
 .video-label {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    background-color: rgba(0, 0, 0, 0.5);
-    color: white;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-    z-index: 20;
-    backdrop-filter: blur(4px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 20;
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-container {
@@ -196,7 +217,14 @@
 
 /* --- Mobile Responsiveness --- */
 @media (max-width: 768px) {
-  .video-grid-container {
+  /* --- UPDATE: Ensure grid stacks vertically on mobile --- */
+  .video-grid-container,
+  .grid-size-1,
+  .grid-size-2,
+  .grid-size-3,
+  .grid-size-4,
+  .grid-size-5,
+  .grid-size-6 {
     grid-template-columns: 1fr;
   }
 
@@ -256,7 +284,8 @@
   background-color: #1f2937;
   border-left: 1px solid #374151;
 }
-.dark .chat-header, .dark .notepad-header {
+.dark .chat-header,
+.dark .notepad-header {
   border-bottom: 1px solid #374151;
   color: #e2e8f0;
 }

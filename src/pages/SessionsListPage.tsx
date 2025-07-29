@@ -9,28 +9,42 @@ import {
   MessageSquare,
   BarChart2,
   User,
+  Users, // Added for group icon
   Award,
 } from "lucide-react";
 
-// --- Define a more specific type for a Session for better code quality ---
+// --- UPDATE: Expanded Session interface to support both types ---
 interface Session {
   id: string;
   date: string;
   rating?: number;
   feedback?: any;
-  mentor: { profile?: { name?: string; avatarUrl?: string } };
-  mentee: { profile?: { name?: string; avatarUrl?: string } };
+  mentor: { id: string; profile?: { name?: string; avatarUrl?: string } };
+  mentee: {
+    id: string;
+    profile?: { name?: string; avatarUrl?: string };
+  } | null;
+  isGroupSession?: boolean;
+  topic?: string;
+  participants?: any[];
+  maxParticipants?: number;
 }
 
-// --- A dedicated, enhanced card component for displaying a session ---
-const SessionCard = ({ session, user, onGiveFeedback }) => {
+// --- Card for 1-on-1 Sessions ---
+const SessionCard = ({
+  session,
+  user,
+  onGiveFeedback,
+}: {
+  session: Session;
+  user: any;
+  onGiveFeedback: (session: Session) => void;
+}) => {
   const isPast = new Date(session.date) < new Date();
   const partner = user.role === "MENTOR" ? session.mentee : session.mentor;
   const partnerRole = user.role === "MENTOR" ? "Mentee" : "Mentor";
   const hasFeedback = session.rating || session.feedback;
 
-  // --- [THE FIX] ---
-  // This now safely handles cases where the partner (mentor/mentee) might be missing.
   const partnerName = partner?.profile?.name || "Deleted User";
   const partnerAvatar =
     partner?.profile?.avatarUrl ||
@@ -118,6 +132,80 @@ const SessionCard = ({ session, user, onGiveFeedback }) => {
   );
 };
 
+// --- NEW: Card for Group Sessions ("Mentoring Circles") ---
+const GroupSessionCard = ({ session }: { session: Session }) => {
+  const isPast = new Date(session.date) < new Date();
+  const mentorName = session.mentor?.profile?.name || "N/A";
+  const mentorAvatar =
+    session.mentor?.profile?.avatarUrl ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(mentorName)}`;
+  const participantCount = session.participants?.length || 0;
+
+  return (
+    <div
+      className={`bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col border-l-4 ${
+        isPast ? "border-gray-400" : "border-purple-500"
+      }`}
+    >
+      <div className="p-5 flex-grow">
+        <div className="mb-4">
+          <p className="text-sm text-purple-600 dark:text-purple-400 font-semibold">
+            Mentoring Circle
+          </p>
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+            {session.topic}
+          </h3>
+        </div>
+        <div className="flex items-center gap-4 mb-4">
+          <img
+            src={mentorAvatar}
+            alt={mentorName}
+            className="w-10 h-10 rounded-full object-cover bg-gray-200"
+          />
+          <div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Hosted by
+            </p>
+            <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
+              {mentorName}
+            </p>
+          </div>
+        </div>
+        <div className="border-t dark:border-gray-700 pt-4 space-y-2">
+          <p className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+            <Calendar size={14} className="mr-2.5 text-purple-500" />
+            {new Date(session.date).toLocaleString([], {
+              dateStyle: "full",
+              timeStyle: "short",
+            })}
+          </p>
+          <p className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+            <Users size={14} className="mr-2.5 text-purple-500" />
+            {participantCount} / {session.maxParticipants} Participants
+          </p>
+        </div>
+      </div>
+      <div className="bg-gray-50 dark:bg-gray-700/50 px-5 py-3 flex justify-end items-center gap-3">
+        {isPast ? (
+          <Link
+            to={`/session/${session.id}/insights`}
+            className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 transition-colors"
+          >
+            <BarChart2 size={14} /> Insights
+          </Link>
+        ) : (
+          <Link
+            to={`/session/${session.id}/call`}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+          >
+            <Video size={16} /> Join Circle
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const SessionsListPage = () => {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -144,9 +232,6 @@ const SessionsListPage = () => {
         const sessionData =
           user.role === "ADMIN" ? response.data.sessions : response.data;
 
-        // --- [THE FIX] ---
-        // Removed the aggressive filter to ensure all sessions are loaded.
-        // The SessionCard component will now handle any missing data gracefully.
         setSessions(sessionData || []);
       } catch (err: any) {
         const errorMessage =
@@ -280,14 +365,19 @@ const SessionsListPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {activeTab === "upcoming" &&
             (upcomingSessions.length > 0 ? (
-              upcomingSessions.map((session) => (
-                <SessionCard
-                  key={session.id}
-                  session={session}
-                  user={user}
-                  onGiveFeedback={handleOpenFeedbackModal}
-                />
-              ))
+              upcomingSessions.map((session) =>
+                // --- UPDATE: Conditionally render the correct card type ---
+                session.isGroupSession ? (
+                  <GroupSessionCard key={session.id} session={session} />
+                ) : (
+                  <SessionCard
+                    key={session.id}
+                    session={session}
+                    user={user}
+                    onGiveFeedback={handleOpenFeedbackModal}
+                  />
+                )
+              )
             ) : (
               <div className="col-span-full">
                 <EmptyState tab="upcoming" />
@@ -296,14 +386,19 @@ const SessionsListPage = () => {
 
           {activeTab === "past" &&
             (pastSessions.length > 0 ? (
-              pastSessions.map((session) => (
-                <SessionCard
-                  key={session.id}
-                  session={session}
-                  user={user}
-                  onGiveFeedback={handleOpenFeedbackModal}
-                />
-              ))
+              pastSessions.map((session) =>
+                // --- UPDATE: Conditionally render the correct card type ---
+                session.isGroupSession ? (
+                  <GroupSessionCard key={session.id} session={session} />
+                ) : (
+                  <SessionCard
+                    key={session.id}
+                    session={session}
+                    user={user}
+                    onGiveFeedback={handleOpenFeedbackModal}
+                  />
+                )
+              )
             ) : (
               <div className="col-span-full">
                 <EmptyState tab="past" />
