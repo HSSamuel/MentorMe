@@ -149,6 +149,11 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
         <NavLink to="/my-sessions" className={linkClass}>
           My Sessions
         </NavLink>
+        {/* --- [THIS IS THE NEW LINK] --- */}
+        <NavLink to="/community" className={linkClass}>
+          Community
+        </NavLink>
+        {/* --- END OF NEW LINK --- */}
         {user.role !== "ADMIN" && (
           <>
             <NavLink to="/goals" className={linkClass}>
@@ -191,7 +196,7 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
                 MentorMe
               </NavLink>
               <div className="hidden md:block">
-                <div className="ml-10 flex items-baseline space-x-4">
+                <div className="ml-10 flex items-baseline space-x-1">
                   {renderNavLinks()}
                 </div>
               </div>

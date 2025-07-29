@@ -46,6 +46,10 @@ const SessionInsightsPage = React.lazy(
 const AdminDashboardPage = React.lazy(
   () => import("./pages/AdminDashboardPage")
 );
+// --- [NEW] Lazily import the new Community Forum pages ---
+const CommunityPage = React.lazy(() => import("./pages/CommunityPage"));
+const PostViewPage = React.lazy(() => import("./pages/PostViewPage"));
+const NewPostPage = React.lazy(() => import("./pages/NewPostPage"));
 
 // This helper component correctly handles the redirect
 const MentorRedirect = () => {
@@ -194,6 +198,32 @@ function App() {
             element={
               <ProtectedRoute>
                 <MessagesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* --- [NEW] Community Forum Routes --- */}
+          <Route
+            path="/community"
+            element={
+              <ProtectedRoute>
+                <CommunityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/community/new"
+            element={
+              <ProtectedRoute>
+                <NewPostPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/community/:postId"
+            element={
+              <ProtectedRoute>
+                <PostViewPage />
               </ProtectedRoute>
             }
           />
