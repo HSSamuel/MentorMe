@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import apiClient from "../api/axios";
 import MentorCard from "../components/MentorCard";
 import FilterSidebar from "../components/FilterSidebar";
-import { StatCardSkeleton } from "../components/StatCardSkeleton";
+import { StatCardSkeleton } from "../components/StatCardSkeleton"; // Using a skeleton for loading
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -88,7 +88,6 @@ const GroupSessionCard = ({
 };
 
 const MentorListPage = () => {
-  // --- EXISTING STATE ---
   const [mentors, setMentors] = useState<any[]>([]);
   const [allSkills, setAllSkills] = useState([]);
   const [filteredMentors, setFilteredMentors] = useState<any[]>([]);
@@ -100,18 +99,14 @@ const MentorListPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [minExperience, setMinExperience] = useState(0);
   const [language, setLanguage] = useState("");
-
-  // --- UPDATED STATE TO MANAGE VIEW ---
   const [viewMode, setViewMode] = useState<
     "recommended" | "browse" | "circles"
   >("recommended");
-  const [groupSessions, setGroupSessions] = useState<any[]>([]); // New state for group sessions
+  const [groupSessions, setGroupSessions] = useState<any[]>([]);
 
-  // --- MODIFIED DATA FETCHING LOGIC ---
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Fetch skills and sent requests regardless of the mode.
       const [skillsRes, requestsRes] = await Promise.all([
         apiClient.get("/users/skills"),
         apiClient.get("/requests/sent"),
@@ -122,7 +117,6 @@ const MentorListPage = () => {
       );
       setRequestedMentorIds(requestedIds);
 
-      // --- Conditional data fetching based on viewMode ---
       if (viewMode === "recommended") {
         const mentorsRes = await apiClient.get("/users/mentors/recommended");
         setMentors(mentorsRes.data);
@@ -154,30 +148,34 @@ const MentorListPage = () => {
     fetchData();
   }, [fetchData]);
 
-  // --- EXISTING FILTERING LOGIC ---
   useEffect(() => {
     if (viewMode === "browse") {
       let result = mentors;
       if (selectedSkill) {
         result = result.filter((m: any) =>
-          m.profile.skills.includes(selectedSkill)
+          m.profile?.skills?.includes(selectedSkill)
         );
       }
       if (searchQuery) {
+        // --- FIX: Added optional chaining (?.) and fallbacks ('') to prevent crash ---
         result = result.filter(
           (m: any) =>
-            m.profile.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            m.profile.bio.toLowerCase().includes(searchQuery.toLowerCase())
+            (m.profile?.name?.toLowerCase() || "").includes(
+              searchQuery.toLowerCase()
+            ) ||
+            (m.profile?.bio?.toLowerCase() || "").includes(
+              searchQuery.toLowerCase()
+            )
         );
       }
       if (minExperience > 0) {
         result = result.filter(
-          (m: any) => m.profile.yearsOfExperience >= minExperience
+          (m: any) => m.profile?.yearsOfExperience >= minExperience
         );
       }
       if (language) {
         result = result.filter((m: any) =>
-          m.profile.languages?.includes(language)
+          m.profile?.languages?.includes(language)
         );
       }
       setFilteredMentors(result);
@@ -186,13 +184,12 @@ const MentorListPage = () => {
     }
   }, [selectedSkill, searchQuery, minExperience, language, mentors, viewMode]);
 
-  // --- NEW: Handler for joining a group session ---
   const handleJoinCircle = async (sessionId: string) => {
     const promise = apiClient.post(`/sessions/${sessionId}/join`);
     toast.promise(promise, {
       loading: "Joining the circle...",
       success: () => {
-        fetchData(); // Refresh the list of sessions
+        fetchData();
         return "Successfully joined the circle!";
       },
       error: (err) =>
@@ -216,7 +213,6 @@ const MentorListPage = () => {
         />
       )}
       <div className="flex-1">
-        {/* --- UPDATED VIEW MODE TOGGLE BUTTONS --- */}
         <div className="flex justify-center mb-6 border-b border-gray-200">
           <button
             onClick={() => setViewMode("recommended")}
@@ -266,7 +262,6 @@ const MentorListPage = () => {
           </div>
         ) : (
           <>
-            {/* --- Conditional Rendering based on viewMode --- */}
             {viewMode === "circles" ? (
               groupSessions.length > 0 ? (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
