@@ -217,7 +217,7 @@
 
 /* --- Mobile Responsiveness --- */
 @media (max-width: 768px) {
-  /* --- UPDATE: Ensure grid stacks vertically on mobile --- */
+  /* --- Ensure grid stacks vertically on mobile --- */
   .video-grid-container,
   .grid-size-1,
   .grid-size-2,

@@ -163,8 +163,9 @@ const UserProfilePage = () => {
             ""
           );
     }
+    // --- FIX: Safely access profile name ---
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      profileUser.profile.name
+      profileUser.profile?.name || profileUser.email
     )}&background=random&color=fff&size=128`;
   };
 
@@ -196,13 +197,16 @@ const UserProfilePage = () => {
           <div className="h-48 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 relative">
             <img
               src={getAvatarUrl()}
-              alt={`Avatar of ${profileUser.profile.name}`}
+              alt={`Avatar of ${
+                profileUser.profile?.name || profileUser.email
+              }`}
               className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-gray-800 absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 shadow-lg"
             />
           </div>
           <div className="pt-20 pb-8 px-8 text-center">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              {profileUser.profile.name}
+              {/* --- FIX: Safely access profile name --- */}
+              {profileUser.profile?.name || profileUser.email}
             </h1>
             <span
               className={`mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
@@ -238,12 +242,13 @@ const UserProfilePage = () => {
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
                 About Me
               </h3>
+              {/* --- FIX: Safely access profile bio --- */}
               <p className="text-gray-600 dark:text-gray-400">
-                {profileUser.profile.bio}
+                {profileUser.profile?.bio || "No bio provided."}
               </p>
             </div>
 
-            {profileUser.profile.skills &&
+            {profileUser.profile?.skills &&
               profileUser.profile.skills.length > 0 && (
                 <div>
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">
@@ -319,8 +324,10 @@ const UserProfilePage = () => {
                         rating={review.rating}
                         totalReviews={0}
                       />
+                      {/* --- FIX: Safely access mentee's profile name --- */}
                       <p className="ml-4 font-bold text-gray-800 dark:text-gray-200">
-                        {review.mentorshipRequest.mentee.profile.name}
+                        {review.mentorshipRequest?.mentee?.profile?.name ||
+                          "A Mentee"}
                       </p>
                     </div>
                     <p className="text-gray-600 dark:text-gray-300 italic">
