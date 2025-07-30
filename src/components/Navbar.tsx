@@ -6,6 +6,113 @@ import NotificationBell from "./NotificationBell";
 import apiClient from "../api/axios";
 import logo from "../assets/logo.png";
 import { io, Socket } from "socket.io-client";
+import { ChevronDown } from "lucide-react";
+
+// --- Reusable Dropdown Component for Desktop ---
+const Dropdown = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="px-3 py-2 rounded-md text-sm font-medium text-blue-100 hover:bg-blue-600 hover:text-white transition-colors duration-200 ease-in-out flex items-center"
+      >
+        {title}
+        <ChevronDown
+          size={16}
+          className={`ml-1 transition-transform duration-200 ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
+      </button>
+      {isOpen && (
+        <div className="origin-top-right absolute left-0 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+          <div
+            className="py-1"
+            role="menu"
+            aria-orientation="vertical"
+            aria-labelledby="options-menu"
+          >
+            {children}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const DropdownLink = ({
+  to,
+  children,
+}: {
+  to: string;
+  children: React.ReactNode;
+}) => (
+  <NavLink
+    to={to}
+    className={({ isActive }) =>
+      `block px-4 py-2 text-sm ${
+        isActive
+          ? "bg-blue-100 dark:bg-gray-700 text-gray-900 dark:text-white"
+          : "text-gray-700 dark:text-gray-200"
+      } hover:bg-gray-100 dark:hover:bg-gray-600`
+    }
+  >
+    {children}
+  </NavLink>
+);
+
+// --- Reusable Accordion Component for Mobile ---
+const MobileAccordion = ({
+  title,
+  children,
+  isOpen,
+  onToggle,
+}: {
+  title: string;
+  children: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+}) => (
+  <div className="py-2">
+    <button
+      onClick={onToggle}
+      className="w-full flex justify-between items-center px-3 py-2 text-left text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 tracking-wider"
+    >
+      <span>{title}</span>
+      <ChevronDown
+        size={16}
+        className={`transition-transform duration-200 ${
+          isOpen ? "rotate-180" : ""
+        }`}
+      />
+    </button>
+    {isOpen && <div className="pl-3 mt-1 space-y-1">{children}</div>}
+  </div>
+);
 
 const SunIcon = () => (
   <svg
@@ -34,6 +141,12 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const [isVisible, setIsVisible] = useState(true);
+  const [openMobileSection, setOpenMobileSection] = useState<string | null>(
+    null
+  );
 
   const baseLinkClasses =
     "px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ease-in-out";
@@ -43,6 +156,27 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
 
   const getNavLinkClass = ({ isActive }: { isActive: boolean }) =>
     `${baseLinkClasses} ${isActive ? activeLinkClasses : inactiveLinkClasses}`;
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      setIsScrolled(currentScrollY > 10);
+
+      if (currentScrollY < 10) {
+        setIsVisible(true);
+      } else if (currentScrollY > lastScrollY) {
+        setIsVisible(false);
+      } else {
+        setIsVisible(true);
+      }
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [lastScrollY]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -100,70 +234,143 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
     const desktopLinkClass = getNavLinkClass;
     const linkClass = isMobile ? () => mobileLinkClass : desktopLinkClass;
 
-    return (
-      <>
-        {user.role !== "ADMIN" && (
-          <NavLink to="/dashboard" className={linkClass}>
+    if (isMobile) {
+      const toggleSection = (section: string) => {
+        setOpenMobileSection(openMobileSection === section ? null : section);
+      };
+
+      return (
+        <>
+          <NavLink
+            to={user.role === "ADMIN" ? "/admin/dashboard" : "/dashboard"}
+            className={linkClass}
+          >
             Dashboard
           </NavLink>
-        )}
+          {user.role === "MENTEE" && (
+            <MobileAccordion
+              title="My Activity"
+              isOpen={openMobileSection === "activity"}
+              onToggle={() => toggleSection("activity")}
+            >
+              <NavLink to="/mentors" className={linkClass}>
+                Find a Mentor
+              </NavLink>
+              <NavLink to="/my-mentors" className={linkClass}>
+                My Mentors
+              </NavLink>
+              <NavLink to="/my-requests" className={linkClass}>
+                My Requests
+              </NavLink>
+              <NavLink to="/my-sessions" className={linkClass}>
+                My Sessions
+              </NavLink>
+              <NavLink to="/goals" className={linkClass}>
+                Goals
+              </NavLink>
+            </MobileAccordion>
+          )}
+          {user.role === "MENTOR" && (
+            <MobileAccordion
+              title="Mentoring"
+              isOpen={openMobileSection === "mentoring"}
+              onToggle={() => toggleSection("mentoring")}
+            >
+              <NavLink to="/requests" className={linkClass}>
+                Requests
+              </NavLink>
+              <NavLink to="/availability" className={linkClass}>
+                Availability
+              </NavLink>
+              <NavLink to="/my-sessions" className={linkClass}>
+                My Sessions
+              </NavLink>
+            </MobileAccordion>
+          )}
+          {user.role === "ADMIN" && (
+            <MobileAccordion
+              title="Manage"
+              isOpen={openMobileSection === "manage"}
+              onToggle={() => toggleSection("manage")}
+            >
+              <NavLink to="/admin/users" className={linkClass}>
+                Users
+              </NavLink>
+              <NavLink to="/admin/matches" className={linkClass}>
+                Matches
+              </NavLink>
+              <NavLink to="/admin/sessions" className={linkClass}>
+                Sessions
+              </NavLink>
+              <NavLink to="/admin/resources" className={linkClass}>
+                Resources
+              </NavLink>
+            </MobileAccordion>
+          )}
+          <MobileAccordion
+            title="Platform"
+            isOpen={openMobileSection === "platform"}
+            onToggle={() => toggleSection("platform")}
+          >
+            <NavLink to="/community" className={linkClass}>
+              Community
+            </NavLink>
+            <NavLink to="/library" className={linkClass}>
+              Library
+            </NavLink>
+            <NavLink to="/messages" className={linkClass}>
+              Messages
+            </NavLink>
+          </MobileAccordion>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <NavLink
+          to={user.role === "ADMIN" ? "/admin/dashboard" : "/dashboard"}
+          className={linkClass}
+        >
+          Dashboard
+        </NavLink>
         {user.role === "MENTEE" && (
           <>
             <NavLink to="/mentors" className={linkClass}>
               Find a Mentor
             </NavLink>
-            <NavLink to="/my-mentors" className={linkClass}>
-              My Mentors
-            </NavLink>
-            <NavLink to="/my-requests" className={linkClass}>
-              My Requests
-            </NavLink>
+            <Dropdown title="My Activity">
+              <DropdownLink to="/my-mentors">My Mentors</DropdownLink>
+              <DropdownLink to="/my-requests">My Requests</DropdownLink>
+              <DropdownLink to="/my-sessions">My Sessions</DropdownLink>
+              <DropdownLink to="/goals">Goals</DropdownLink>
+            </Dropdown>
           </>
         )}
         {user.role === "MENTOR" && (
-          <>
-            <NavLink to="/requests" className={linkClass}>
-              Requests
-            </NavLink>
-            <NavLink to="/availability" className={linkClass}>
-              Availability
-            </NavLink>
-          </>
+          <Dropdown title="Mentoring">
+            <DropdownLink to="/requests">Requests</DropdownLink>
+            <DropdownLink to="/availability">Availability</DropdownLink>
+            <DropdownLink to="/my-sessions">My Sessions</DropdownLink>
+          </Dropdown>
         )}
         {user.role === "ADMIN" && (
-          <>
-            <NavLink to="/admin/dashboard" className={linkClass}>
-              Dashboard
-            </NavLink>
-            <NavLink to="/admin/users" className={linkClass}>
-              Users
-            </NavLink>
-            <NavLink to="/admin/matches" className={linkClass}>
-              Matches
-            </NavLink>
-            <NavLink to="/admin/sessions" className={linkClass}>
-              Sessions
-            </NavLink>
-          </>
+          <Dropdown title="Manage">
+            <DropdownLink to="/admin/users">Users</DropdownLink>
+            <DropdownLink to="/admin/matches">Matches</DropdownLink>
+            <DropdownLink to="/admin/sessions">Sessions</DropdownLink>
+            <DropdownLink to="/admin/resources">Resources</DropdownLink>
+          </Dropdown>
         )}
-        <NavLink to="/my-sessions" className={linkClass}>
-          My Sessions
-        </NavLink>
-        {/* --- [THIS IS THE NEW LINK] --- */}
         <NavLink to="/community" className={linkClass}>
           Community
         </NavLink>
-        {/* --- END OF NEW LINK --- */}
-        {user.role !== "ADMIN" && (
-          <>
-            <NavLink to="/goals" className={linkClass}>
-              Goals
-            </NavLink>
-            <NavLink to="/messages" className={linkClass}>
-              Messages
-            </NavLink>
-          </>
-        )}
+        <NavLink to="/library" className={linkClass}>
+          Library
+        </NavLink>
+        <NavLink to="/messages" className={linkClass}>
+          Messages
+        </NavLink>
       </>
     );
   };
@@ -174,8 +381,14 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
 
   return (
     <nav
-      className={`sticky top-0 z-40 ${
-        isAuthPage ? "bg-transparent" : "bg-blue-700 dark:bg-gray-900"
+      className={`sticky top-0 z-40 transition-all duration-300 ${
+        isVisible || isMobileMenuOpen ? "translate-y-0" : "-translate-y-full"
+      } ${
+        isAuthPage
+          ? "bg-transparent"
+          : isScrolled
+          ? "bg-blue-700/90 dark:bg-gray-900/90 backdrop-blur-sm shadow-lg"
+          : "bg-blue-700 dark:bg-gray-900"
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -189,8 +402,9 @@ const Navbar = ({ isAuthPage }: { isAuthPage: boolean }) => {
         ) : (
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
+              {/* --- FIX: Dynamic link for the main logo based on user role --- */}
               <NavLink
-                to="/dashboard"
+                to={user?.role === "ADMIN" ? "/admin/dashboard" : "/dashboard"}
                 className="text-2xl font-bold text-white"
               >
                 MentorMe

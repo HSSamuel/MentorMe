@@ -90,7 +90,6 @@ const DashboardPage = () => {
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      // --- DEBUGGING ---
       console.log("DashboardPage: useEffect triggered.");
       console.log("Auth Loading:", isAuthLoading);
       console.log("User Object:", user);
@@ -116,7 +115,6 @@ const DashboardPage = () => {
           sessionsPromise = apiClient.get("/sessions/mentee");
         }
 
-        // --- DEBUGGING ---
         console.log("Fetching stats from URL:", statsUrl);
 
         const responses = await Promise.all(
@@ -190,10 +188,7 @@ const DashboardPage = () => {
       } bg-gradient-to-br from-gray-50 via-purple-50 to-blue-100 dark:from-gray-800 dark:via-purple-900/70 dark:to-blue-900/70`}
     >
       <div className="flex items-center space-x-6">
-        {/* Icon with updated styling */}
         <div className={`rounded-full p-4 shadow-md ${color}`}>{icon}</div>
-
-        {/* Text content */}
         <div>
           <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
             {title}
@@ -250,11 +245,11 @@ const DashboardPage = () => {
   );
 
   const NextSessionCard = () => {
-    // --- UPDATE: Add conditional styling and content for different session types ---
     const isGroupSession = nextSession.isGroupSession;
+    // --- UPDATE: Changed the color for the 1-on-1 session card ---
     const cardColor = isGroupSession
-      ? "bg-gradient-to-r from-purple-500 to-pink-500"
-      : "bg-gradient-to-r from-blue-500 to-indigo-600";
+      ? "bg-gradient-to-r from-purple-500 to-yellow-500"
+      : "bg-gradient-to-r from-blue-600 to-purple-600"; // New gradient for 1-on-1
 
     const otherPersonName =
       user?.role === "MENTOR"
@@ -481,8 +476,8 @@ const DashboardPage = () => {
         renderLoading()
       ) : user ? (
         <>
-          {/* --- [START] Welcome Card Styling Update --- */}
-          <div className="bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 rounded-lg shadow-xl p-6 sm:p-8 mb-8 flex flex-col sm:flex-row items-center justify-between gap-6">
+          {/* --- UPDATE: Changed the gradient color for the Welcome card --- */}
+          <div className="bg-gradient-to-r from-purple-600 to-blue-500 rounded-lg shadow-xl p-6 sm:p-8 mb-8 flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="text-center sm:text-left">
               <h1 className="text-3xl font-bold text-white mb-2">
                 Welcome back,{" "}
@@ -509,7 +504,7 @@ const DashboardPage = () => {
               className="h-24 w-24 rounded-full object-cover ring-4 ring-white/50 shadow-lg"
             />
           </div>
-          {/* --- [END] Welcome Card Styling Update --- */}
+          {/* --- END OF UPDATE --- */}
 
           {isLoading && !stats ? renderLoading() : null}
           {!isLoading && !stats && !isAuthLoading ? renderError() : null}

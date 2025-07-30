@@ -46,10 +46,14 @@ const SessionInsightsPage = React.lazy(
 const AdminDashboardPage = React.lazy(
   () => import("./pages/AdminDashboardPage")
 );
-// --- [NEW] Lazily import the new Community Forum pages ---
 const CommunityPage = React.lazy(() => import("./pages/CommunityPage"));
 const PostViewPage = React.lazy(() => import("./pages/PostViewPage"));
 const NewPostPage = React.lazy(() => import("./pages/NewPostPage"));
+const LibraryPage = React.lazy(() => import("./pages/LibraryPage"));
+// --- [NEW] Lazily import the new Admin Resources page ---
+const AdminResourcesPage = React.lazy(
+  () => import("./pages/AdminResourcesPage")
+);
 
 // This helper component correctly handles the redirect
 const MentorRedirect = () => {
@@ -83,10 +87,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* --- [THIS IS THE FIX] --- */}
-          {/* The route now correctly uses the MentorRedirect component */}
           <Route path="/mentor/:id" element={<MentorRedirect />} />
-          {/* --- END OF FIX --- */}
 
           {/* Protected Routes */}
           <Route
@@ -202,7 +203,7 @@ function App() {
             }
           />
 
-          {/* --- [NEW] Community Forum Routes --- */}
+          {/* Community Forum Routes */}
           <Route
             path="/community"
             element={
@@ -224,6 +225,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <PostViewPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/library"
+            element={
+              <ProtectedRoute>
+                <LibraryPage />
               </ProtectedRoute>
             }
           />
@@ -258,6 +268,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["ADMIN"]}>
                 <AdminSessionsPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* --- [NEW] Admin Resources Route --- */}
+          <Route
+            path="/admin/resources"
+            element={
+              <ProtectedRoute allowedRoles={["ADMIN"]}>
+                <AdminResourcesPage />
               </ProtectedRoute>
             }
           />

@@ -56,18 +56,19 @@ const SessionCard = ({
         isPast ? "border-gray-400" : "border-indigo-500"
       }`}
     >
-      <div className="p-5 flex-grow">
-        <div className="flex items-center gap-4 mb-4">
+      {/* --- Centered content, reduced padding and sizes --- */}
+      <div className="p-4 flex-grow flex flex-col items-center text-center">
+        <div className="flex flex-col items-center gap-2 mb-3">
           <img
             src={partnerAvatar}
             alt={partnerName}
             className="w-16 h-16 rounded-full object-cover bg-gray-200"
           />
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
               Session with
             </p>
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+            <h3 className="text-md font-bold text-gray-900 dark:text-white">
               {partnerName}
             </h3>
             <span
@@ -86,17 +87,17 @@ const SessionCard = ({
             </span>
           </div>
         </div>
-        <div className="border-t dark:border-gray-700 pt-4">
-          <p className="flex items-center text-sm text-gray-600 dark:text-gray-300">
-            <Calendar size={14} className="mr-2.5 text-indigo-500" />
+        <div className="border-t dark:border-gray-700 pt-3 mt-3 w-full">
+          <p className="flex items-center justify-center text-xs text-gray-600 dark:text-gray-300">
+            <Calendar size={12} className="mr-2 text-indigo-500" />
             {new Date(session.date).toLocaleString([], {
-              dateStyle: "full",
+              dateStyle: "medium",
               timeStyle: "short",
             })}
           </p>
         </div>
       </div>
-      <div className="bg-gray-50 dark:bg-gray-700/50 px-5 py-3 flex justify-end items-center gap-3">
+      <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-2 flex justify-end items-center gap-3">
         {isPast ? (
           <>
             <Link
@@ -147,22 +148,23 @@ const GroupSessionCard = ({ session }: { session: Session }) => {
         isPast ? "border-gray-400" : "border-purple-500"
       }`}
     >
-      <div className="p-5 flex-grow">
-        <div className="mb-4">
-          <p className="text-sm text-purple-600 dark:text-purple-400 font-semibold">
+      {/* --- UPDATE: Centered content, reduced padding and sizes --- */}
+      <div className="p-4 flex-grow flex flex-col items-center text-center">
+        <div className="mb-3 text-center">
+          <p className="text-xs text-purple-600 dark:text-purple-400 font-semibold">
             Mentoring Circle
           </p>
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+          <h3 className="text-md font-bold text-gray-900 dark:text-white">
             {session.topic}
           </h3>
         </div>
-        <div className="flex items-center gap-4 mb-4">
+        <div className="flex flex-col items-center gap-2 mb-3">
           <img
             src={mentorAvatar}
             alt={mentorName}
-            className="w-10 h-10 rounded-full object-cover bg-gray-200"
+            className="w-14 h-14 rounded-full object-cover bg-gray-200"
           />
-          <div>
+          <div className="text-center">
             <p className="text-xs text-gray-500 dark:text-gray-400">
               Hosted by
             </p>
@@ -171,21 +173,21 @@ const GroupSessionCard = ({ session }: { session: Session }) => {
             </p>
           </div>
         </div>
-        <div className="border-t dark:border-gray-700 pt-4 space-y-2">
-          <p className="flex items-center text-sm text-gray-600 dark:text-gray-300">
-            <Calendar size={14} className="mr-2.5 text-purple-500" />
+        <div className="border-t dark:border-gray-700 pt-3 mt-3 w-full space-y-1">
+          <p className="flex items-center justify-center text-xs text-gray-600 dark:text-gray-300">
+            <Calendar size={12} className="mr-2 text-purple-500" />
             {new Date(session.date).toLocaleString([], {
-              dateStyle: "full",
+              dateStyle: "medium",
               timeStyle: "short",
             })}
           </p>
-          <p className="flex items-center text-sm text-gray-600 dark:text-gray-300">
-            <Users size={14} className="mr-2.5 text-purple-500" />
+          <p className="flex items-center justify-center text-xs text-gray-600 dark:text-gray-300">
+            <Users size={12} className="mr-2 text-purple-500" />
             {participantCount} / {session.maxParticipants} Participants
           </p>
         </div>
       </div>
-      <div className="bg-gray-50 dark:bg-gray-700/50 px-5 py-3 flex justify-end items-center gap-3">
+      <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-2 flex justify-end items-center gap-3">
         {isPast ? (
           <Link
             to={`/session/${session.id}/insights`}
@@ -366,7 +368,6 @@ const SessionsListPage = () => {
           {activeTab === "upcoming" &&
             (upcomingSessions.length > 0 ? (
               upcomingSessions.map((session) =>
-                // --- UPDATE: Conditionally render the correct card type ---
                 session.isGroupSession ? (
                   <GroupSessionCard key={session.id} session={session} />
                 ) : (
@@ -387,7 +388,6 @@ const SessionsListPage = () => {
           {activeTab === "past" &&
             (pastSessions.length > 0 ? (
               pastSessions.map((session) =>
-                // --- UPDATE: Conditionally render the correct card type ---
                 session.isGroupSession ? (
                   <GroupSessionCard key={session.id} session={session} />
                 ) : (

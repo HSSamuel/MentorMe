@@ -4,7 +4,6 @@ import apiClient from "../api/axios";
 import { Link } from "react-router-dom";
 import {
   Calendar,
-  User,
   Check,
   X,
   Hourglass,
@@ -12,14 +11,22 @@ import {
   Search,
   ChevronDown,
   Eye,
+  Users as GroupIcon,
 } from "lucide-react";
 import io from "socket.io-client";
+import {
+  useTable,
+  useSortBy,
+  usePagination,
+  useGlobalFilter,
+  Column,
+} from "react-table";
 
-// --- UPDATE: Expanded Session interface to support group sessions ---
+// --- Updated Session interface ---
 interface Session {
   id: string;
-  mentor: { profile?: { name?: string } };
-  mentee: { profile?: { name?: string } } | null; // Mentee can be null for group sessions
+  mentor: { id: string; profile?: { name?: string } };
+  mentee: { id: string; profile?: { name?: string } } | null;
   date: string;
   status: "UPCOMING" | "COMPLETED" | "CANCELLED";
   rating?: number;
@@ -28,10 +35,10 @@ interface Session {
   topic?: string;
   participants?: any[];
   maxParticipants?: number;
-  totalCount?: number; // For real-time updates
+  totalCount?: number;
 }
 
-// --- A dedicated modal to display existing feedback ---
+// --- Feedback Modal (unchanged) ---
 const ViewFeedbackModal = ({
   isOpen,
   onClose,
@@ -98,76 +105,71 @@ const ViewFeedbackModal = ({
   );
 };
 
-const statusStyles = {
-  UPCOMING: {
-    icon: <Hourglass size={14} className="mr-1.5" />,
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-    borderColor: "border-blue-500",
-  },
-  COMPLETED: {
-    icon: <Check size={14} className="mr-1.5" />,
-    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-    borderColor: "border-green-500",
-  },
-  CANCELLED: {
-    icon: <X size={14} className="mr-1.5" />,
-    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
-    borderColor: "border-red-500",
-  },
-};
-
 const AdminSessionsPage = () => {
-  const { token } = useAuth(); // Get the auth token for the socket
+  const { token } = useAuth();
   const [allSessions, setAllSessions] = useState<Session[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [sortBy, setSortBy] = useState<string>("newest");
   const [isFeedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
 
-  useEffect(() => {
-    const fetchSessions = async () => {
-      setIsLoading(true);
-      try {
-        const response = await apiClient.get("/admin/sessions");
-        if (Array.isArray(response.data.sessions)) {
-          setAllSessions(response.data.sessions);
-        }
-        setTotalCount(response.data.totalCount);
-      } catch (err) {
-        setError("Failed to fetch sessions.");
-      } finally {
-        setIsLoading(false);
+  const fetchSessions = async () => {
+    setIsLoading(true);
+    try {
+      const response = await apiClient.get("/admin/sessions");
+      if (Array.isArray(response.data.sessions)) {
+        const processedSessions = response.data.sessions.map((s: any) => ({
+          ...s,
+          status: new Date(s.date) < new Date() ? "COMPLETED" : "UPCOMING",
+        }));
+        setAllSessions(processedSessions);
       }
-    };
+      setTotalCount(response.data.totalCount);
+    } catch (err) {
+      setError("Failed to fetch sessions.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchSessions();
   }, []);
 
-  // --- [REAL-TIME UPDATE] ---
   useEffect(() => {
     if (token) {
       const socket = io(import.meta.env.VITE_API_BASE_URL!, {
         auth: { token },
       });
 
-      socket.on("sessionUpdated", (updatedSession: Session) => {
+      const handleSessionUpdate = (updatedSession: Session) => {
+        const processedSession = {
+          ...updatedSession,
+          status:
+            new Date(updatedSession.date) < new Date()
+              ? "COMPLETED"
+              : "UPCOMING",
+        };
         setAllSessions((prevSessions) =>
           prevSessions.map((session) =>
-            session.id === updatedSession.id ? updatedSession : session
+            session.id === processedSession.id ? processedSession : session
           )
         );
-        if (updatedSession.totalCount) {
-          setTotalCount(updatedSession.totalCount);
-        }
-      });
+      };
 
-      socket.on("newSession", (newSession: Session) => {
-        setAllSessions((prevSessions) => [newSession, ...prevSessions]);
-        setTotalCount((prevCount) => prevCount + 1);
-      });
+      const handleNewSession = (newSession: Session) => {
+        const processedSession = {
+          ...newSession,
+          status:
+            new Date(newSession.date) < new Date() ? "COMPLETED" : "UPCOMING",
+        };
+        setAllSessions((prevSessions) => [processedSession, ...prevSessions]);
+        setTotalCount((prev) => prev + 1);
+      };
+
+      socket.on("sessionUpdated", handleSessionUpdate);
+      socket.on("newSession", handleNewSession);
 
       return () => {
         socket.disconnect();
@@ -175,204 +177,271 @@ const AdminSessionsPage = () => {
     }
   }, [token]);
 
-  const filteredSessions = useMemo(() => {
-    return allSessions
-      .filter((session) => {
-        if (statusFilter !== "ALL" && session.status !== statusFilter) {
-          return false;
-        }
-        if (searchTerm) {
-          const lowerCaseSearch = searchTerm.toLowerCase();
-          const mentorName = session.mentor.profile?.name?.toLowerCase() || "";
-          // --- FIX: Safely check mentee name and also check group session topic ---
-          const menteeName = session.mentee?.profile?.name?.toLowerCase() || "";
-          const topic = session.topic?.toLowerCase() || "";
-          return (
-            mentorName.includes(lowerCaseSearch) ||
-            menteeName.includes(lowerCaseSearch) ||
-            topic.includes(lowerCaseSearch)
-          );
-        }
-        return true;
-      })
-      .sort((a, b) => {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
-        return sortBy === "newest" ? dateB - dateA : dateA - dateB;
-      });
-  }, [allSessions, searchTerm, statusFilter, sortBy]);
-
   const handleViewFeedback = (session: Session) => {
     setSelectedSession(session);
     setFeedbackModalOpen(true);
   };
 
-  const FilterButton = ({
-    status,
-    label,
-  }: {
-    status: string;
-    label: string;
-  }) => (
-    <button
-      onClick={() => setStatusFilter(status)}
-      className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${
-        statusFilter === status
-          ? "bg-indigo-600 text-white shadow"
-          : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600"
-      }`}
-    >
-      {label}
-    </button>
+  const columns = useMemo<Column<Session>[]>(
+    () => [
+      {
+        Header: "Session Info",
+        accessor: "topic", // Sort by topic
+        Cell: ({ row }) => (
+          <div className="flex flex-col">
+            <span className="font-bold text-gray-800 dark:text-white">
+              {row.original.isGroupSession
+                ? row.original.topic
+                : "1-on-1 Session"}
+            </span>
+            <span className="text-xs text-gray-500">{row.original.id}</span>
+          </div>
+        ),
+      },
+      {
+        Header: "Mentor",
+        accessor: "mentor.profile.name",
+        Cell: ({ row }) => (
+          <Link
+            to={`/users/${row.original.mentor.id}`}
+            className="text-blue-600 hover:underline"
+          >
+            {row.original.mentor.profile?.name || "N/A"}
+          </Link>
+        ),
+      },
+      {
+        Header: "Participants",
+        accessor: "mentee.profile.name", // Sort by mentee name for 1-on-1
+        Cell: ({ row }) => {
+          if (row.original.isGroupSession) {
+            return (
+              <div className="flex items-center">
+                <GroupIcon size={16} className="mr-2 text-purple-500" />
+                <span>
+                  {row.original.participants?.length || 0} /{" "}
+                  {row.original.maxParticipants}
+                </span>
+              </div>
+            );
+          }
+          return row.original.mentee ? (
+            <Link
+              to={`/users/${row.original.mentee.id}`}
+              className="text-blue-600 hover:underline"
+            >
+              {row.original.mentee.profile?.name || "N/A"}
+            </Link>
+          ) : (
+            "N/A"
+          );
+        },
+      },
+      {
+        Header: "Date",
+        accessor: "date",
+        Cell: ({ value }) => new Date(value).toLocaleString(),
+      },
+      {
+        Header: "Status",
+        accessor: "status",
+        Cell: ({ value }) => (
+          <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              value === "COMPLETED"
+                ? "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                : "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+            }`}
+          >
+            {value}
+          </span>
+        ),
+      },
+      {
+        Header: "Actions",
+        accessor: "id",
+        Cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            {(row.original.rating || row.original.feedback) && (
+              <button
+                onClick={() => handleViewFeedback(row.original)}
+                className="p-1.5 text-gray-500 hover:text-blue-600"
+                title="View Feedback"
+              >
+                <Eye size={16} />
+              </button>
+            )}
+          </div>
+        ),
+      },
+    ],
+    []
+  );
+
+  const {
+    getTableProps,
+    getTableBodyProps,
+    headerGroups,
+    prepareRow,
+    page,
+    canPreviousPage,
+    canNextPage,
+    pageOptions,
+    pageCount,
+    gotoPage,
+    nextPage,
+    previousPage,
+    setPageSize,
+    state: { pageIndex, pageSize, globalFilter },
+    setGlobalFilter,
+  } = useTable(
+    {
+      columns,
+      data: allSessions,
+      initialState: { pageIndex: 0, pageSize: 10 },
+    },
+    useGlobalFilter,
+    useSortBy,
+    usePagination
   );
 
   if (isLoading)
-    return (
-      <p className="p-8 text-center text-gray-500 dark:text-gray-400">
-        Loading all sessions...
-      </p>
-    );
+    return <p className="p-8 text-center">Loading all sessions...</p>;
   if (error) return <p className="p-8 text-center text-red-500">{error}</p>;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          All Sessions
+          All Sessions ({totalCount})
         </h1>
-        <div className="bg-gradient-to-r from-indigo-600 to-blue-500 text-white rounded-xl shadow-lg p-4 text-center">
-          <h2 className="text-md font-semibold opacity-80">Total Sessions</h2>
-          <p className="text-3xl font-bold">{totalCount}</p>
-        </div>
-      </div>
-
-      <div className="mb-8 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg shadow-inner space-y-4 md:space-y-0 md:flex md:items-center md:justify-between">
-        <div className="relative flex-grow md:mr-4">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Search by mentor, mentee, or topic..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:ring-indigo-500 focus:border-indigo-500"
+            placeholder="Search sessions..."
+            value={globalFilter || ""}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="w-full md:w-64 pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200"
           />
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <FilterButton status="ALL" label="All" />
-          <FilterButton status="UPCOMING" label="Upcoming" />
-          <FilterButton status="COMPLETED" label="Completed" />
-          <FilterButton status="CANCELLED" label="Cancelled" />
-          <div className="relative">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="appearance-none w-full md:w-auto bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 py-2 pl-3 pr-8 rounded-md leading-tight focus:outline-none focus:bg-white dark:focus:bg-gray-600 focus:border-indigo-500"
-            >
-              <option value="newest">Newest First</option>
-              <option value="oldest">Oldest First</option>
-            </select>
-            <ChevronDown
-              className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300"
-              size={20}
-            />
-          </div>
         </div>
       </div>
 
-      {filteredSessions.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredSessions.map((session) => {
-            const statusInfo =
-              statusStyles[session.status] || statusStyles.UPCOMING;
-            const hasFeedback = session.rating || session.feedback;
-
-            return (
-              <div
-                key={session.id}
-                className={`bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-all duration-300 border-l-4 ${statusInfo.borderColor} flex flex-col`}
-              >
-                <div className="p-5 flex-grow">
-                  <div className="flex justify-between items-start mb-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusInfo.color}`}
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+        <div className="overflow-x-auto">
+          <table {...getTableProps()} className="w-full">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              {headerGroups.map((headerGroup) => (
+                <tr {...headerGroup.getHeaderGroupProps()}>
+                  {headerGroup.headers.map((column) => (
+                    <th
+                      {...column.getHeaderProps(column.getSortByToggleProps())}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer"
                     >
-                      {statusInfo.icon}
-                      {session.status}
-                    </span>
-                    <div className="flex items-center text-yellow-500">
-                      <span className="font-bold text-lg text-gray-800 dark:text-white mr-1">
-                        {session.rating ? session.rating.toFixed(1) : "N/A"}
+                      {column.render("Header")}
+                      <span className="ml-1">
+                        {column.isSorted
+                          ? column.isSortedDesc
+                            ? "🔽"
+                            : "🔼"
+                          : ""}
                       </span>
-                      <Star size={18} />
-                    </div>
-                  </div>
-                  <div className="space-y-3 text-sm">
-                    {/* --- FIX: Conditional rendering for session participants --- */}
-                    {session.isGroupSession ? (
-                      <p className="font-semibold text-gray-800 dark:text-gray-200">
-                        <span className="font-bold text-purple-600 dark:text-purple-400">
-                          Circle: {session.topic || "Group Session"}
-                        </span>
-                        <br />
-                        <span className="font-normal">
-                          Hosted by{" "}
-                          <strong>
-                            {session.mentor.profile?.name || "N/A"}
-                          </strong>
-                        </span>
-                        <br />
-                        <span className="font-normal text-xs">
-                          ({session.participants?.length || 0} /{" "}
-                          {session.maxParticipants} participants)
-                        </span>
-                      </p>
-                    ) : (
-                      <p className="font-semibold text-gray-800 dark:text-gray-200">
-                        <span className="font-bold">
-                          {session.mentor.profile?.name || "N/A"}
-                        </span>{" "}
-                        &amp;{" "}
-                        <span className="font-bold">
-                          {session.mentee?.profile?.name || "N/A"}
-                        </span>
-                      </p>
-                    )}
-                    <p className="flex items-center text-gray-500 dark:text-gray-400">
-                      <Calendar size={14} className="mr-2" />
-                      {new Date(session.date).toLocaleString([], {
-                        dateStyle: "full",
-                        timeStyle: "short",
-                      })}
-                    </p>
-                  </div>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-700/50 px-5 py-3 flex justify-between items-center rounded-b-lg">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Session ID: {session.id}
-                  </p>
-                  {hasFeedback && (
-                    <button
-                      onClick={() => handleViewFeedback(session)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
-                    >
-                      <Eye size={14} /> View Feedback
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody
+              {...getTableBodyProps()}
+              className="divide-y divide-gray-200 dark:divide-gray-700"
+            >
+              {page.map((row) => {
+                prepareRow(row);
+                return (
+                  <tr
+                    {...row.getRowProps()}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-600"
+                  >
+                    {row.cells.map((cell) => (
+                      <td
+                        {...cell.getCellProps()}
+                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"
+                      >
+                        {cell.render("Cell")}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      ) : (
-        <div className="text-center py-16 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
-            No Sessions Found
-          </h3>
-          <p className="text-gray-500 dark:text-gray-400 mt-2">
-            Your search, filter, or sort criteria did not match any sessions.
-          </p>
+        {page.length === 0 && (
+          <div className="text-center py-16">
+            <h3 className="text-xl font-semibold">No Sessions Found</h3>
+            <p className="text-gray-500 mt-2">
+              Your search did not match any sessions.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="py-3 flex items-center justify-between flex-wrap gap-2">
+        <div className="flex gap-x-2 items-center">
+          <span className="text-sm text-gray-700 dark:text-gray-200">
+            Page <span className="font-medium">{pageIndex + 1}</span> of{" "}
+            <span className="font-medium">{pageOptions.length}</span>
+          </span>
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+            }}
+            className="p-1 border rounded-md dark:bg-gray-700 dark:border-gray-600"
+          >
+            {[10, 20, 50].map((pageSize) => (
+              <option key={pageSize} value={pageSize}>
+                Show {pageSize}
+              </option>
+            ))}
+          </select>
         </div>
-      )}
+        <div>
+          <nav
+            className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+            aria-label="Pagination"
+          >
+            <button
+              onClick={() => gotoPage(0)}
+              disabled={!canPreviousPage}
+              className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 hover:bg-gray-50"
+            >
+              First
+            </button>
+            <button
+              onClick={() => previousPage()}
+              disabled={!canPreviousPage}
+              className="relative inline-flex items-center px-2 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 hover:bg-gray-50"
+            >
+              Prev
+            </button>
+            <button
+              onClick={() => nextPage()}
+              disabled={!canNextPage}
+              className="relative inline-flex items-center px-2 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 hover:bg-gray-50"
+            >
+              Next
+            </button>
+            <button
+              onClick={() => gotoPage(pageCount - 1)}
+              disabled={!canNextPage}
+              className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-500 hover:bg-gray-50"
+            >
+              Last
+            </button>
+          </nav>
+        </div>
+      </div>
 
       <ViewFeedbackModal
         isOpen={isFeedbackModalOpen}

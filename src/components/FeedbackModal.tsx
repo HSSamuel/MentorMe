@@ -48,7 +48,7 @@ const FeedbackModal = ({
     e.preventDefault();
     setError("");
 
-    if (user?.role === "MENTEE" && rating === 0) {
+    if (user?.role === "MENTEE" && rating === 0 && !session.isGroupSession) {
       setError("Please select a rating from 1 to 5.");
       return;
     }
@@ -104,15 +104,27 @@ const FeedbackModal = ({
         <h3 className="text-2xl font-bold text-center text-gray-800 mb-4">
           Share Your Feedback
         </h3>
+        {/* --- UPDATE: Conditionally render header for 1-on-1 or group sessions --- */}
         <p className="text-center text-gray-500 mb-6">
-          Session with{" "}
-          {user?.role === "MENTOR"
-            ? session.mentee.profile.name
-            : session.mentor.profile.name}{" "}
+          {session.isGroupSession ? (
+            <>
+              For Mentoring Circle: <strong>{session.topic}</strong>
+            </>
+          ) : (
+            <>
+              Session with{" "}
+              <strong>
+                {user?.role === "MENTOR"
+                  ? session.mentee?.profile?.name
+                  : session.mentor?.profile?.name}
+              </strong>
+            </>
+          )}{" "}
           on {new Date(session.date).toLocaleDateString()}
         </p>
         <form onSubmit={handleSubmit}>
-          {user?.role === "MENTEE" && (
+          {/* --- UPDATE: Only show rating for 1-on-1 sessions for now --- */}
+          {user?.role === "MENTEE" && !session.isGroupSession && (
             <div className="mb-6">
               <label className="block text-center text-sm font-medium text-gray-700 mb-2">
                 Your Rating
