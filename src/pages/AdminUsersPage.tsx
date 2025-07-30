@@ -1,19 +1,28 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import apiClient from "../api/axios";
+import toast from "react-hot-toast";
 import {
+  useTable,
+  useSortBy,
+  usePagination,
+  useGlobalFilter,
+  Column,
+} from "react-table";
+import { Link } from "react-router-dom";
+import { format } from "date-fns";
+import {
+  Search,
+  Edit,
+  Trash2,
   User as UserIcon,
   Shield,
-  Trash2,
-  Edit,
-  Search,
   Award,
   Eye,
   RefreshCw,
+  X,
 } from "lucide-react";
-import toast from "react-hot-toast";
 
-// Define the structure of your User object
+// --- Types ---
 interface Profile {
   name: string;
   bio?: string;
@@ -24,6 +33,8 @@ interface User {
   id: string;
   email: string;
   role: UserRole;
+  createdAt: string;
+  lastSeen: string;
   profile: Profile;
 }
 
@@ -31,22 +42,19 @@ const roleStyles = {
   MENTEE: {
     icon: <UserIcon size={14} className="mr-1.5" />,
     color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
-    borderColor: "border-green-500",
   },
   MENTOR: {
     icon: <Award size={14} className="mr-1.5" />,
     color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300",
-    borderColor: "border-blue-500",
   },
   ADMIN: {
     icon: <Shield size={14} className="mr-1.5" />,
     color:
       "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300",
-    borderColor: "border-purple-500",
   },
 };
 
-// --- Reusable Modal Component for Deleting Users ---
+// --- Reusable Modal Components (unchanged) ---
 const ConfirmationModal = ({
   isOpen,
   onClose,
@@ -63,7 +71,7 @@ const ConfirmationModal = ({
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl w-full max-w-md transform transition-all">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl w-full max-w-md">
         <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
           {title}
         </h2>
@@ -71,13 +79,13 @@ const ConfirmationModal = ({
         <div className="mt-6 flex justify-end gap-4">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+            className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 hover:bg-gray-300"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 shadow-md hover:shadow-lg transition-all"
+            className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
           >
             Confirm
           </button>
@@ -87,7 +95,6 @@ const ConfirmationModal = ({
   );
 };
 
-// --- Reusable Modal Component for Editing User Roles ---
 const EditUserModal = ({
   isOpen,
   onClose,
@@ -112,7 +119,7 @@ const EditUserModal = ({
   };
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl w-full max-w-md transform transition-all">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl w-full max-w-md">
         <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
           Edit Role for {user.profile.name}
         </h2>
@@ -127,7 +134,7 @@ const EditUserModal = ({
             id="role-select"
             value={selectedRole}
             onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-            className="p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+            className="p-3 border rounded-lg dark:bg-gray-700"
           >
             <option value="ADMIN">ADMIN</option>
             <option value="MENTOR">MENTOR</option>
@@ -137,14 +144,14 @@ const EditUserModal = ({
         <div className="mt-6 flex justify-end gap-4">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors"
+            className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600"
           >
             Cancel
           </button>
           <button
             onClick={handleSaveClick}
             disabled={isSaving}
-            className="flex justify-center items-center w-36 px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 shadow-md transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="flex justify-center items-center w-36 px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-400"
           >
             {isSaving ? "Saving..." : "Save Changes"}
           </button>
@@ -156,34 +163,29 @@ const EditUserModal = ({
 
 const AdminUsersPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [userToAction, setUserToAction] = useState<User | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole>("MENTEE");
-  // --- [NEW] State to handle the refresh button's loading state ---
   const [isRefreshing, setIsRefreshing] = useState(false);
+  // --- FIX: Added the missing state declaration for searchTerm ---
+  const [searchTerm, setSearchTerm] = useState("");
 
   const fetchUsers = useCallback(async () => {
-    // Determine which loading state to set based on context
     if (!loading) {
       setIsRefreshing(true);
     } else {
       setLoading(true);
     }
-
     try {
       const response = await apiClient.get("/admin/users?limit=1000");
       const fetchedUsers = response.data.users || [];
       setUsers(fetchedUsers);
-      setFilteredUsers(fetchedUsers);
       setError(null);
       if (!loading) {
-        // Only show toast on manual refresh
         toast.success("User list updated!");
       }
     } catch (err: any) {
@@ -196,23 +198,11 @@ const AdminUsersPage: React.FC = () => {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [loading]); // 'loading' differentiates initial load from refresh
+  }, [loading]);
 
   useEffect(() => {
     fetchUsers();
-  }, []); // Changed to run only once on initial mount
-
-  useEffect(() => {
-    const results = users.filter(
-      (user) =>
-        (user.profile?.name?.toLowerCase() || "n/a").includes(
-          searchTerm.toLowerCase()
-        ) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.role.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredUsers(results);
-  }, [searchTerm, users]);
+  }, []);
 
   const openDeleteModal = (user: User) => {
     setUserToAction(user);
@@ -270,18 +260,123 @@ const AdminUsersPage: React.FC = () => {
     }
   };
 
+  const columns = useMemo<Column<User>[]>(
+    () => [
+      {
+        Header: "User",
+        accessor: (row) => row.profile?.name || row.email,
+        Cell: ({ row }) => (
+          <div className="flex items-center">
+            <img
+              className="h-10 w-10 rounded-full object-cover"
+              src={
+                row.original.profile?.avatarUrl ||
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                  row.original.profile?.name || row.original.email
+                )}`
+              }
+              alt=""
+            />
+            <div className="ml-4">
+              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                {row.original.profile?.name || "N/A"}
+              </div>
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                {row.original.email}
+              </div>
+            </div>
+          </div>
+        ),
+      },
+      {
+        Header: "Role",
+        accessor: "role",
+        Cell: ({ value }) => {
+          const roleInfo = roleStyles[value] || roleStyles.MENTEE;
+          return (
+            <span
+              className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${roleInfo.color}`}
+            >
+              {roleInfo.icon}
+              {value}
+            </span>
+          );
+        },
+      },
+      {
+        Header: "Date Joined",
+        accessor: "createdAt",
+        Cell: ({ value }) => format(new Date(value), "MMM d, yyyy"),
+      },
+      {
+        Header: "Actions",
+        accessor: "id",
+        Cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            <Link
+              to={`/users/${row.original.id}`}
+              target="_blank"
+              className="p-1.5 text-gray-500 hover:text-blue-600"
+              title="View Profile"
+            >
+              <Eye size={16} />
+            </Link>
+            <button
+              onClick={() => openEditModal(row.original)}
+              className="p-1.5 text-gray-500 hover:text-purple-600"
+              title="Edit Role"
+            >
+              <Edit size={16} />
+            </button>
+            <button
+              onClick={() => openDeleteModal(row.original)}
+              className="p-1.5 text-gray-500 hover:text-red-600"
+              title="Delete User"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+        ),
+      },
+    ],
+    []
+  );
+
+  const {
+    getTableProps,
+    getTableBodyProps,
+    headerGroups,
+    prepareRow,
+    page,
+    canPreviousPage,
+    canNextPage,
+    pageOptions,
+    pageCount,
+    gotoPage,
+    nextPage,
+    previousPage,
+    setPageSize,
+    state: { pageIndex, pageSize, globalFilter },
+    setGlobalFilter,
+  } = useTable(
+    { columns, data: users, initialState: { pageIndex: 0, pageSize: 10 } },
+    useGlobalFilter,
+    useSortBy,
+    usePagination
+  );
+
+  useEffect(() => {
+    // This is a bridge to use the old search term state with react-table's filter
+    setGlobalFilter(searchTerm);
+  }, [searchTerm, setGlobalFilter]);
+
   if (loading) return <div className="p-10 text-center">Loading users...</div>;
   if (error)
-    return (
-      <div className="p-10 text-center text-red-600 bg-red-100 dark:bg-red-900/20 dark:text-red-300 rounded-md">
-        {error}
-      </div>
-    );
+    return <div className="p-10 text-center text-red-600">{error}</div>;
 
   return (
     <div className="p-4 md:p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       <div className="container mx-auto">
-        {/* --- [ENHANCED] Header with new Refresh button --- */}
         <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
             User Management
@@ -289,7 +384,7 @@ const AdminUsersPage: React.FC = () => {
           <button
             onClick={fetchUsers}
             disabled={isRefreshing}
-            className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-100 rounded-md hover:bg-indigo-200 dark:bg-indigo-900 dark:text-indigo-300 dark:hover:bg-indigo-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-100 rounded-md hover:bg-indigo-200"
           >
             <RefreshCw
               className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
@@ -303,83 +398,123 @@ const AdminUsersPage: React.FC = () => {
           <input
             type="text"
             placeholder="Search by name, email, or role..."
-            className="w-full p-3 pl-12 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200"
+            className="w-full p-3 pl-12 border rounded-lg"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredUsers.length > 0 ? (
-            filteredUsers.map((user) => {
-              const roleInfo = roleStyles[user.role] || roleStyles.MENTEE;
-              return (
-                <div
-                  key={user.id}
-                  className={`bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 flex flex-col border-l-4 ${roleInfo.borderColor}`}
-                >
-                  <div className="p-5 flex-grow">
-                    <div className="flex items-center gap-4 mb-4">
-                      <img
-                        src={
-                          user.profile?.avatarUrl ||
-                          `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                            user.profile?.name || user.email
-                          )}&background=random`
-                        }
-                        alt={user.profile?.name || user.email}
-                        className="w-14 h-14 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600"
-                      />
-                      <div className="flex-grow overflow-hidden">
-                        <h3 className="text-base font-bold text-gray-900 dark:text-white truncate">
-                          {user.profile?.name || "N/A"}
-                        </h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {user.email}
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${roleInfo.color}`}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+          <div className="overflow-x-auto">
+            <table {...getTableProps()} className="w-full">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                {headerGroups.map((headerGroup) => (
+                  <tr {...headerGroup.getHeaderGroupProps()}>
+                    {headerGroup.headers.map((column) => (
+                      <th
+                        {...column.getHeaderProps(
+                          column.getSortByToggleProps()
+                        )}
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer"
+                      >
+                        {column.render("Header")}
+                        <span className="ml-1">
+                          {column.isSorted
+                            ? column.isSortedDesc
+                              ? "🔽"
+                              : "🔼"
+                            : ""}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody
+                {...getTableBodyProps()}
+                className="divide-y divide-gray-200 dark:divide-gray-700"
+              >
+                {page.map((row) => {
+                  prepareRow(row);
+                  return (
+                    <tr
+                      {...row.getRowProps()}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-600"
                     >
-                      {roleInfo.icon}
-                      {user.role}
-                    </span>
-                  </div>
-                  <div className="bg-gray-50 dark:bg-gray-700/50 px-5 py-3 flex justify-end gap-2">
-                    <Link
-                      to={`/users/${user.id}`}
-                      target="_blank"
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800 transition-colors"
-                    >
-                      <Eye size={14} /> View
-                    </Link>
-                    <button
-                      onClick={() => openEditModal(user)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-purple-700 bg-purple-100 rounded-md hover:bg-purple-200 dark:bg-purple-900 dark:text-purple-300 dark:hover:bg-purple-800 transition-colors"
-                    >
-                      <Edit size={14} /> Edit
-                    </button>
-                    <button
-                      onClick={() => openDeleteModal(user)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-700 bg-red-100 rounded-md hover:bg-red-200 dark:bg-red-900 dark:text-red-300 dark:hover:bg-red-800 transition-colors"
-                    >
-                      <Trash2 size={14} /> Delete
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="col-span-full text-center py-16 px-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-              <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100">
-                No Users Found
-              </h3>
-              <p className="text-gray-500 dark:text-gray-400 mt-2">
+                      {row.cells.map((cell) => (
+                        <td
+                          {...cell.getCellProps()}
+                          className="px-6 py-4 whitespace-nowrap text-sm"
+                        >
+                          {cell.render("Cell")}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {page.length === 0 && (
+            <div className="text-center py-16">
+              <h3 className="text-xl font-semibold">No Users Found</h3>
+              <p className="text-gray-500 mt-2">
                 Your search did not match any users.
               </p>
             </div>
           )}
+        </div>
+
+        <div className="py-3 flex items-center justify-between flex-wrap gap-2">
+          <span className="text-sm text-gray-700 dark:text-gray-200">
+            Page <strong>{pageIndex + 1}</strong> of{" "}
+            <strong>{pageOptions.length}</strong>
+          </span>
+          <div className="flex gap-x-2 items-center">
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+              }}
+              className="p-1 border rounded-md dark:bg-gray-700 dark:border-gray-600"
+            >
+              {[10, 20, 50].map((pageSize) => (
+                <option key={pageSize} value={pageSize}>
+                  Show {pageSize}
+                </option>
+              ))}
+            </select>
+            <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+              <button
+                onClick={() => gotoPage(0)}
+                disabled={!canPreviousPage}
+                className="relative inline-flex items-center px-2 py-2 rounded-l-md border"
+              >
+                First
+              </button>
+              <button
+                onClick={() => previousPage()}
+                disabled={!canPreviousPage}
+                className="relative inline-flex items-center px-2 py-2 border"
+              >
+                Prev
+              </button>
+              <button
+                onClick={() => nextPage()}
+                disabled={!canNextPage}
+                className="relative inline-flex items-center px-2 py-2 border"
+              >
+                Next
+              </button>
+              <button
+                onClick={() => gotoPage(pageCount - 1)}
+                disabled={!canNextPage}
+                className="relative inline-flex items-center px-2 py-2 rounded-r-md border"
+              >
+                Last
+              </button>
+            </nav>
+          </div>
         </div>
 
         <ConfirmationModal
