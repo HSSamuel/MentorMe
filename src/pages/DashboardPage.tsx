@@ -246,10 +246,9 @@ const DashboardPage = () => {
 
   const NextSessionCard = () => {
     const isGroupSession = nextSession.isGroupSession;
-    // --- UPDATE: Changed the color for the 1-on-1 session card ---
     const cardColor = isGroupSession
       ? "bg-gradient-to-r from-purple-500 to-yellow-500"
-      : "bg-gradient-to-r from-blue-600 to-purple-600"; // New gradient for 1-on-1
+      : "bg-gradient-to-r from-blue-600 to-purple-600";
 
     const otherPersonName =
       user?.role === "MENTOR"
@@ -476,7 +475,6 @@ const DashboardPage = () => {
         renderLoading()
       ) : user ? (
         <>
-          {/* --- UPDATE: Changed the gradient color for the Welcome card --- */}
           <div className="bg-gradient-to-r from-purple-600 to-blue-500 rounded-lg shadow-xl p-6 sm:p-8 mb-8 flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="text-center sm:text-left">
               <h1 className="text-3xl font-bold text-white mb-2">
@@ -504,14 +502,15 @@ const DashboardPage = () => {
               className="h-24 w-24 rounded-full object-cover ring-4 ring-white/50 shadow-lg"
             />
           </div>
-          {/* --- END OF UPDATE --- */}
 
           {isLoading && !stats ? renderLoading() : null}
           {!isLoading && !stats && !isAuthLoading ? renderError() : null}
 
+          {/* --- UPDATE: Condition to show GetStartedGuide for both new mentors and new mentees --- */}
           {!isLoading &&
             stats &&
-            stats.menteeCount === 0 &&
+            ((user.role === "MENTOR" && stats.menteeCount === 0) ||
+              (user.role === "MENTEE" && stats.mentorCount === 0)) &&
             stats.pendingRequests === 0 &&
             stats.upcomingSessions === 0 && <GetStartedGuide />}
 
