@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Video, {
   LocalVideoTrack,
@@ -6,7 +6,6 @@ import Video, {
   RemoteAudioTrack,
   RemoteTrack,
   RemoteParticipant,
-  Participant,
 } from "twilio-video";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "../contexts/AuthContext";
@@ -56,58 +55,12 @@ const SessionTimer = ({ startTime }: { startTime: number }) => {
   );
 };
 
-// --- NEW: Component to render each remote participant ---
-const ParticipantComponent = ({
-  participant,
-}: {
-  participant: RemoteParticipant;
-}) => {
-  const videoRef = useRef<HTMLDivElement>(null);
-  const audioRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const trackSubscribed = (track: RemoteTrack) => {
-      if (track.kind === "video") {
-        videoRef.current?.appendChild(track.attach());
-      } else if (track.kind === "audio") {
-        audioRef.current?.appendChild(track.attach());
-      }
-    };
-
-    const trackUnsubscribed = (track: RemoteTrack) => {
-      track.detach().forEach((element) => element.remove());
-    };
-
-    participant.on("trackSubscribed", trackSubscribed);
-    participant.on("trackUnsubscribed", trackUnsubscribed);
-
-    participant.tracks.forEach((publication) => {
-      if (publication.track) {
-        trackSubscribed(publication.track as RemoteTrack);
-      }
-    });
-
-    return () => {
-      participant.removeAllListeners();
-    };
-  }, [participant]);
-
-  return (
-    <div className="video-participant-container">
-      <div ref={videoRef} className="video-feed" />
-      <div ref={audioRef} />
-      <div className="video-label">{participant.identity}</div>
-    </div>
-  );
-};
-
 const VideoCallPage = () => {
   const { theme } = useTheme();
   const { sessionId } = useParams<{ sessionId: string }>();
   const { token: authToken, user } = useAuth();
   const navigate = useNavigate();
 
-  // --- State Variables ---
   const [videoToken, setVideoToken] = useState<string | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
   const [status, setStatus] = useState<CallStatus>({
@@ -115,13 +68,12 @@ const VideoCallPage = () => {
     type: "info",
   });
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
-  // --- UPDATE: State to hold all remote participants ---
   const [participants, setParticipants] = useState<RemoteParticipant[]>([]);
+  const [sessionDetails, setSessionDetails] = useState<any>(null);
 
   const localVideoRef = useRef<HTMLDivElement>(null);
   const dataSocketRef = useRef<Socket | null>(null);
 
-  // --- Feature States ---
   const [isNotepadOpen, setIsNotepadOpen] = useState(false);
   const [notepadContent, setNotepadContent] = useState("");
   const [isAudioMuted, setIsAudioMuted] = useState(false);
@@ -135,31 +87,109 @@ const VideoCallPage = () => {
   const [insightsGenerated, setInsightsGenerated] = useState(false);
   const notificationSentRef = useRef(false);
 
-  // --- Core Logic ---
+  const getParticipantName = useCallback(
+    (participant: RemoteParticipant) => {
+      if (!sessionDetails) return participant.identity;
 
-  // 1. Get the Twilio Video Token
+      if (participant.identity === sessionDetails.mentor.id) {
+        return sessionDetails.mentor.profile?.name || "Mentor";
+      }
+
+      if (
+        sessionDetails.mentee &&
+        participant.identity === sessionDetails.mentee.id
+      ) {
+        return sessionDetails.mentee.profile?.name || participant.identity;
+      }
+
+      if (sessionDetails.participants) {
+        const menteeInfo = sessionDetails.participants.find(
+          (p: any) => p.mentee?.id === participant.identity
+        );
+        return menteeInfo?.mentee?.profile?.name || participant.identity;
+      }
+
+      return participant.identity;
+    },
+    [sessionDetails]
+  );
+
+  const ParticipantComponent = ({
+    participant,
+  }: {
+    participant: RemoteParticipant;
+  }) => {
+    const videoRef = useRef<HTMLDivElement>(null);
+    const audioRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      const trackSubscribed = (track: RemoteTrack) => {
+        if (track.kind === "video") {
+          videoRef.current?.appendChild(track.attach());
+        } else if (track.kind === "audio") {
+          audioRef.current?.appendChild(track.attach());
+        }
+      };
+
+      const trackUnsubscribed = (track: RemoteTrack) => {
+        track.detach().forEach((element) => element.remove());
+      };
+
+      participant.on("trackSubscribed", trackSubscribed);
+      participant.on("trackUnsubscribed", trackUnsubscribed);
+
+      participant.tracks.forEach((publication) => {
+        if (publication.track) {
+          trackSubscribed(publication.track as RemoteTrack);
+        }
+      });
+
+      return () => {
+        participant.removeAllListeners();
+      };
+    }, [participant]);
+
+    return (
+      <div className="video-participant-container">
+        <div ref={videoRef} className="video-feed" />
+        <div ref={audioRef} />
+        <div className="video-label">{getParticipantName(participant)}</div>
+      </div>
+    );
+  };
+
   useEffect(() => {
     if (!sessionId || !authToken) return;
     setStatus({ message: "Authenticating...", type: "connecting" });
-    axios
-      .post(
-        `/sessions/${sessionId}/call-token`,
-        {},
-        { headers: { Authorization: `Bearer ${authToken}` } }
-      )
-      .then((response) => {
-        setVideoToken(response.data.videoToken);
+
+    const fetchAllData = async () => {
+      try {
+        // --- FIX: Added the Authorization header to BOTH API calls ---
+        const [sessionDetailsRes, tokenRes] = await Promise.all([
+          axios.get(`/sessions/${sessionId}`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          }),
+          axios.post(
+            `/sessions/${sessionId}/call-token`,
+            {},
+            { headers: { Authorization: `Bearer ${authToken}` } }
+          ),
+        ]);
+        setSessionDetails(sessionDetailsRes.data);
+        setVideoToken(tokenRes.data.videoToken);
         setStatus({ message: "Ready to join session.", type: "info" });
-      })
-      .catch((error) =>
+      } catch (error: any) {
+        console.error("Error fetching session data or token:", error);
         setStatus({
-          message: "Error: Could not authenticate for call.",
+          message:
+            "Error: Could not authenticate for call. Please ensure you are a participant.",
           type: "error",
-        })
-      );
+        });
+      }
+    };
+    fetchAllData();
   }, [sessionId, authToken]);
 
-  // 2. Connect to Twilio Room AND our Data Socket
   useEffect(() => {
     if (!videoToken) return;
 
@@ -180,7 +210,6 @@ const VideoCallPage = () => {
           type: "success",
         });
 
-        // Attach local participant's video
         if (localVideoRef.current) {
           localVideoRef.current.innerHTML = "";
           room.localParticipant.tracks.forEach((publication) => {
@@ -190,7 +219,6 @@ const VideoCallPage = () => {
           });
         }
 
-        // --- UPDATE: Handle multiple participants ---
         setParticipants(Array.from(room.participants.values()));
 
         const handleParticipantConnected = (participant: RemoteParticipant) => {
@@ -213,14 +241,14 @@ const VideoCallPage = () => {
 
         room.on("participantConnected", handleParticipantConnected);
         room.on("participantDisconnected", handleParticipantDisconnected);
-        // --- END OF UPDATE ---
       })
-      .catch((error) =>
+      .catch((error) => {
+        console.error("Failed to connect to Twilio Room:", error);
         setStatus({
           message: "Error: Failed to connect to video service.",
           type: "error",
-        })
-      );
+        });
+      });
 
     dataSocket = io(import.meta.env.VITE_API_BASE_URL!, {
       auth: { token: authToken },
@@ -238,12 +266,10 @@ const VideoCallPage = () => {
     };
   }, [videoToken, sessionId, authToken, sessionStartTime]);
 
-  // --- This effect triggers the notification to other participants ---
   useEffect(() => {
     if (room && !notificationSentRef.current) {
       notificationSentRef.current = true;
 
-      // Use the new, more generic notification endpoint
       axios
         .post(`/sessions/${sessionId}/notify-call`)
         .then(() => {
@@ -258,7 +284,6 @@ const VideoCallPage = () => {
     }
   }, [room, user, sessionId]);
 
-  // --- Feature Handlers ---
   const handleNotepadChange = useCallback(
     (newContent: string) => {
       setNotepadContent(newContent);
@@ -434,7 +459,6 @@ const VideoCallPage = () => {
       </p>
 
       <div className={`video-main-area ${getStatusClasses(status.type)}`}>
-        {/* --- UPDATE: Dynamic video grid for all participants --- */}
         <div
           className={`video-grid-container grid-size-${
             participants.length + 1
@@ -451,7 +475,6 @@ const VideoCallPage = () => {
             />
           ))}
         </div>
-        {/* --- END OF UPDATE --- */}
 
         <SharedNotepad
           isOpen={isNotepadOpen}

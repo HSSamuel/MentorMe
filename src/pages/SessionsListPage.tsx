@@ -56,13 +56,13 @@ const SessionCard = ({
         isPast ? "border-gray-400" : "border-indigo-500"
       }`}
     >
-      {/* --- Centered content, reduced padding and sizes --- */}
+      {/* --- UPDATE: Centered content, reduced padding and sizes --- */}
       <div className="p-4 flex-grow flex flex-col items-center text-center">
         <div className="flex flex-col items-center gap-2 mb-3">
           <img
             src={partnerAvatar}
             alt={partnerName}
-            className="w-16 h-16 rounded-full object-cover bg-gray-200"
+            className="w-14 h-14 rounded-full object-cover bg-gray-200"
           />
           <div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -133,10 +133,11 @@ const SessionCard = ({
   );
 };
 
-// --- NEW: Card for Group Sessions ("Mentoring Circles") ---
+// --- Card for Group Sessions ("Mentoring Circles") ---
 const GroupSessionCard = ({ session }: { session: Session }) => {
   const isPast = new Date(session.date) < new Date();
-  const mentorName = session.mentor?.profile?.name || "N/A";
+  // --- FIX: Correctly access the mentor's name from the session object ---
+  const mentorName = session.mentor?.profile?.name || "Mentor";
   const mentorAvatar =
     session.mentor?.profile?.avatarUrl ||
     `https://ui-avatars.com/api/?name=${encodeURIComponent(mentorName)}`;
@@ -148,7 +149,6 @@ const GroupSessionCard = ({ session }: { session: Session }) => {
         isPast ? "border-gray-400" : "border-purple-500"
       }`}
     >
-      {/* --- UPDATE: Centered content, reduced padding and sizes --- */}
       <div className="p-4 flex-grow flex flex-col items-center text-center">
         <div className="mb-3 text-center">
           <p className="text-xs text-purple-600 dark:text-purple-400 font-semibold">
