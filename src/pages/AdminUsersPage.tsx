@@ -54,7 +54,7 @@ const roleStyles = {
   },
 };
 
-// --- Reusable Modal Components (unchanged) ---
+// --- Reusable Modal Components ---
 const ConfirmationModal = ({
   isOpen,
   onClose,
@@ -102,6 +102,7 @@ const EditUserModal = ({
   user,
   selectedRole,
   setSelectedRole,
+  isSaving, // --- UPDATE: Receive isSaving state as a prop ---
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -109,19 +110,15 @@ const EditUserModal = ({
   user: User | null;
   selectedRole: UserRole;
   setSelectedRole: (role: UserRole) => void;
+  isSaving: boolean;
 }) => {
-  const [isSaving, setIsSaving] = useState(false);
   if (!isOpen || !user) return null;
-  const handleSaveClick = async () => {
-    setIsSaving(true);
-    await onSave();
-    // No need to set isSaving back to false, as the modal will close.
-  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
       <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl w-full max-w-md">
         <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-          Edit Role for {user.profile.name}
+          Edit Role for {user.profile?.name || user.email}
         </h2>
         <div className="flex flex-col">
           <label
@@ -149,7 +146,7 @@ const EditUserModal = ({
             Cancel
           </button>
           <button
-            onClick={handleSaveClick}
+            onClick={onSave}
             disabled={isSaving}
             className="flex justify-center items-center w-36 px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:bg-gray-400"
           >
@@ -171,8 +168,9 @@ const AdminUsersPage: React.FC = () => {
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [selectedRole, setSelectedRole] = useState<UserRole>("MENTEE");
   const [isRefreshing, setIsRefreshing] = useState(false);
-  // --- FIX: Added the missing state declaration for searchTerm ---
   const [searchTerm, setSearchTerm] = useState("");
+  // --- UPDATE: State for saving is now managed here ---
+  const [isSaving, setIsSaving] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     if (!loading) {
@@ -243,6 +241,7 @@ const AdminUsersPage: React.FC = () => {
 
   const handleUpdateRole = async () => {
     if (!userToEdit) return;
+    setIsSaving(true); // --- UPDATE: Set saving state ---
     try {
       const response = await apiClient.put(
         `/admin/users/${userToEdit.id}/role`,
@@ -257,6 +256,8 @@ const AdminUsersPage: React.FC = () => {
     } catch (err) {
       toast.error(`Failed to update role for ${userToEdit.profile.name}.`);
       console.error(err);
+    } finally {
+      setIsSaving(false); // --- UPDATE: Reset saving state ---
     }
   };
 
@@ -366,7 +367,6 @@ const AdminUsersPage: React.FC = () => {
   );
 
   useEffect(() => {
-    // This is a bridge to use the old search term state with react-table's filter
     setGlobalFilter(searchTerm);
   }, [searchTerm, setGlobalFilter]);
 
@@ -394,7 +394,7 @@ const AdminUsersPage: React.FC = () => {
         </div>
 
         <div className="mb-8 relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Search className="absolute left-3.5 top-1.2 -translate-y-1/2 h-5 w-5 text-gray-400" />
           <input
             type="text"
             placeholder="Search by name, email, or role..."
@@ -539,6 +539,7 @@ const AdminUsersPage: React.FC = () => {
           user={userToEdit}
           selectedRole={selectedRole}
           setSelectedRole={setSelectedRole}
+          isSaving={isSaving}
         />
       </div>
     </div>
