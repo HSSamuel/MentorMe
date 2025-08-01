@@ -10,8 +10,8 @@ import {
   MessageSquare,
   CalendarPlus,
   Edit,
-} from "lucide-react"; // Added icons
-import toast from "react-hot-toast"; // Assuming you use react-hot-toast
+} from "lucide-react";
+import toast from "react-hot-toast";
 
 // A simple spinner component
 const Spinner = () => (
@@ -52,8 +52,8 @@ const StarRatingDisplay = ({
   );
 };
 
-const UserProfilePage = () => {
-  const { id } = useParams<{ id: string }>();
+const MentorProfilePage = () => {
+  const { mentorId } = useParams<{ mentorId: string }>();
   const { user } = useAuth();
   const [profileUser, setProfileUser] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
@@ -67,60 +67,71 @@ const UserProfilePage = () => {
     string | null
   >(null);
 
-  const checkIfAlreadyRequested = async () => {
-    if (user && user.role === "MENTEE" && id) {
-      try {
-        const response = await apiClient.get(`/requests/status/${id}`);
-        if (response.data.exists) {
-          setIsRequested(true);
-          setMentorshipRequestStatus(response.data.status);
-        } else {
-          setIsRequested(false);
-          setMentorshipRequestStatus(null);
-        }
-      } catch (err) {
-        console.warn("Could not check mentorship request status:", err);
-      }
-    } else if (user && user.role !== "MENTEE") {
-      setIsRequested(true);
-      setMentorshipRequestStatus("N/A");
-    }
-  };
-
   useEffect(() => {
     const fetchProfileData = async () => {
-      if (!id) return;
+      // --- DEBUGGING: Log the mentorId when the component mounts ---
+      console.log("Fetching profile for mentorId:", mentorId);
+
+      if (!mentorId) {
+        setError("No mentor ID provided in the URL.");
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
+      setError(""); // Reset error state on new fetch
+
       try {
-        const [userRes, reviewsRes] = await Promise.all([
-          apiClient.get(`/users/${id}`),
-          apiClient.get(`/reviews/mentor/${id}`),
+        const userResPromise = apiClient.get(`/users/${mentorId}`);
+        const reviewsResPromise = apiClient.get(`/reviews/mentor/${mentorId}`);
+
+        // --- DEBUGGING: Use Promise.allSettled to see all responses ---
+        const results = await Promise.allSettled([
+          userResPromise,
+          reviewsResPromise,
         ]);
 
-        setProfileUser(userRes.data);
+        let userResult, reviewsResult;
 
-        if (userRes.data.role === "MENTOR") {
-          setReviews(reviewsRes.data);
-          if (reviewsRes.data.length > 0) {
-            const totalRating = reviewsRes.data.reduce(
-              (acc: number, review: any) => acc + review.rating,
-              0
-            );
-            setAvgRating(totalRating / reviewsRes.data.length);
+        if (results[0].status === "fulfilled") {
+          userResult = results[0].value;
+          setProfileUser(userResult.data);
+        } else {
+          // --- DEBUGGING: Log the specific error for the user request ---
+          console.error("Error fetching user profile:", results[0].reason);
+          throw new Error("Failed to fetch user profile.");
+        }
+
+        if (results[1].status === "fulfilled") {
+          reviewsResult = results[1].value;
+          if (userResult.data.role === "MENTOR") {
+            setReviews(reviewsResult.data);
+            if (reviewsResult.data.length > 0) {
+              const totalRating = reviewsResult.data.reduce(
+                (acc: number, review: any) => acc + review.rating,
+                0
+              );
+              setAvgRating(totalRating / reviewsResult.data.length);
+            }
           }
+        } else {
+          // --- DEBUGGING: Log the specific error for the reviews request ---
+          console.warn("Could not fetch reviews:", results[1].reason);
+          // This is not a critical error, so we don't throw
         }
-        if (user) {
-          await checkIfAlreadyRequested();
-        }
-      } catch (err) {
-        setError("User profile not found or an error occurred.");
-        console.error(err);
+      } catch (err: any) {
+        // --- DEBUGGING: Set a more informative error message ---
+        setError(err.message || "An unexpected error occurred.");
+        console.error("Full error object:", err);
       } finally {
         setIsLoading(false);
       }
     };
+
     fetchProfileData();
-  }, [id, user]);
+  }, [mentorId]); // Removed 'user' from dependency array to prevent re-fetching on auth state changes
+
+  // ... (rest of the component is unchanged)
 
   const handleRequestMentorship = async () => {
     setRequestError("");
@@ -163,7 +174,6 @@ const UserProfilePage = () => {
             ""
           );
     }
-    // --- FIX: Safely access profile name ---
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(
       profileUser.profile?.name || profileUser.email
     )}&background=random&color=fff&size=128`;
@@ -205,7 +215,6 @@ const UserProfilePage = () => {
           </div>
           <div className="pt-20 pb-8 px-8 text-center">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-              {/* --- FIX: Safely access profile name --- */}
               {profileUser.profile?.name || profileUser.email}
             </h1>
             <span
@@ -242,7 +251,6 @@ const UserProfilePage = () => {
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
                 About Me
               </h3>
-              {/* --- FIX: Safely access profile bio --- */}
               <p className="text-gray-600 dark:text-gray-400">
                 {profileUser.profile?.bio || "No bio provided."}
               </p>
@@ -269,7 +277,7 @@ const UserProfilePage = () => {
           </div>
 
           <div className="bg-gray-50 dark:bg-gray-700/50 px-8 py-4 flex flex-col sm:flex-row justify-center items-center gap-4">
-            {user && user.id === id ? (
+            {user && user.id === mentorId ? (
               <Link
                 to="/profile/edit"
                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 shadow-md transition-all"
@@ -292,7 +300,7 @@ const UserProfilePage = () => {
                   <MessageSquare size={20} /> {buttonText}
                 </button>
                 <Link
-                  to={`/book-session/${id}`}
+                  to={`/book-session/${mentorId}`}
                   className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 shadow-md transition-all"
                 >
                   <CalendarPlus size={20} /> Book a Session
@@ -324,7 +332,6 @@ const UserProfilePage = () => {
                         rating={review.rating}
                         totalReviews={0}
                       />
-                      {/* --- FIX: Safely access mentee's profile name --- */}
                       <p className="ml-4 font-bold text-gray-800 dark:text-gray-200">
                         {review.mentorshipRequest?.mentee?.profile?.name ||
                           "A Mentee"}
@@ -348,4 +355,4 @@ const UserProfilePage = () => {
   );
 };
 
-export default UserProfilePage;
+export default MentorProfilePage;

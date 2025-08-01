@@ -1,17 +1,14 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import apiClient from "../api/axios";
 import { Link } from "react-router-dom";
 import {
-  Calendar,
-  Check,
-  X,
-  Hourglass,
   Star,
   Search,
-  ChevronDown,
   Eye,
-  Users as GroupIcon,
+  Trash2, // Import Trash2 icon for delete
+  Info, // Import Info icon for details
+  X,
 } from "lucide-react";
 import io from "socket.io-client";
 import {
@@ -21,8 +18,9 @@ import {
   useGlobalFilter,
   Column,
 } from "react-table";
+import toast from "react-hot-toast";
 
-// --- Updated Session interface ---
+// --- Session interface ---
 interface Session {
   id: string;
   mentor: { id: string; profile?: { name?: string } };
@@ -37,6 +35,47 @@ interface Session {
   maxParticipants?: number;
   totalCount?: number;
 }
+
+// --- Reusable Confirmation Modal ---
+const ConfirmationModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  children,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  children: React.ReactNode;
+}) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-xl w-full max-w-md">
+        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+          {title}
+        </h2>
+        <div className="text-gray-600 dark:text-gray-300">{children}</div>
+        <div className="mt-6 flex justify-end gap-4">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 hover:bg-gray-300"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // --- Feedback Modal (unchanged) ---
 const ViewFeedbackModal = ({
@@ -113,6 +152,9 @@ const AdminSessionsPage = () => {
   const [error, setError] = useState("");
   const [isFeedbackModalOpen, setFeedbackModalOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  // --- NEW: State for delete confirmation modal ---
+  const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null);
 
   const fetchSessions = async () => {
     setIsLoading(true);
@@ -182,11 +224,37 @@ const AdminSessionsPage = () => {
     setFeedbackModalOpen(true);
   };
 
+  // --- NEW: Functions to handle delete modal ---
+  const openDeleteModal = (session: Session) => {
+    setSessionToDelete(session);
+    setDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    setSessionToDelete(null);
+    setDeleteModalOpen(false);
+  };
+
+  const handleDeleteSession = async () => {
+    if (!sessionToDelete) return;
+    try {
+      await apiClient.delete(`/admin/sessions/${sessionToDelete.id}`);
+      setAllSessions((prev) => prev.filter((s) => s.id !== sessionToDelete.id));
+      setTotalCount((prev) => prev - 1);
+      toast.success("Session deleted successfully.");
+    } catch (err) {
+      toast.error("Failed to delete session.");
+      console.error(err);
+    } finally {
+      closeDeleteModal();
+    }
+  };
+
   const columns = useMemo<Column<Session>[]>(
     () => [
       {
         Header: "Session Info",
-        accessor: "topic", // Sort by topic
+        accessor: "topic",
         Cell: ({ row }) => (
           <div className="flex flex-col">
             <span className="font-bold text-gray-800 dark:text-white">
@@ -201,40 +269,43 @@ const AdminSessionsPage = () => {
       {
         Header: "Mentor",
         accessor: "mentor.profile.name",
-        Cell: ({ row }) => (
-          <Link
-            to={`/users/${row.original.mentor.id}`}
-            className="text-blue-600 hover:underline"
-          >
-            {row.original.mentor.profile?.name || "N/A"}
-          </Link>
-        ),
+        Cell: ({ row }) => {
+          if (row.original.mentor && row.original.mentor.id) {
+            return (
+              <Link
+                to={`/mentor/${row.original.mentor.id}`}
+                className="text-blue-600 hover:underline"
+              >
+                {row.original.mentor.profile?.name || "N/A"}
+              </Link>
+            );
+          }
+          return <>{row.original.mentor?.profile?.name || "N/A (Invalid)"}</>;
+        },
       },
       {
         Header: "Participants",
-        accessor: "mentee.profile.name", // Sort by mentee name for 1-on-1
+        accessor: "mentee.profile.name",
         Cell: ({ row }) => {
           if (row.original.isGroupSession) {
             return (
               <div className="flex items-center">
-                <GroupIcon size={16} className="mr-2 text-purple-500" />
-                <span>
-                  {row.original.participants?.length || 0} /{" "}
-                  {row.original.maxParticipants}
-                </span>
+                {row.original.participants?.length || 0} /{" "}
+                {row.original.maxParticipants}
               </div>
             );
           }
-          return row.original.mentee ? (
-            <Link
-              to={`/users/${row.original.mentee.id}`}
-              className="text-blue-600 hover:underline"
-            >
-              {row.original.mentee.profile?.name || "N/A"}
-            </Link>
-          ) : (
-            "N/A"
-          );
+          if (row.original.mentee && row.original.mentee.id) {
+            return (
+              <Link
+                to={`/mentor/${row.original.mentee.id}`}
+                className="text-blue-600 hover:underline"
+              >
+                {row.original.mentee.profile?.name || "N/A"}
+              </Link>
+            );
+          }
+          return <>{row.original.mentee?.profile?.name || "N/A (Invalid)"}</>;
         },
       },
       {
@@ -262,6 +333,14 @@ const AdminSessionsPage = () => {
         accessor: "id",
         Cell: ({ row }) => (
           <div className="flex items-center gap-2">
+            {/* --- UPDATED: New Action Buttons --- */}
+            <Link
+              to={`/session/${row.original.id}/insights`}
+              className="p-1.5 text-gray-500 hover:text-green-600"
+              title="View Details"
+            >
+              <Info size={16} />
+            </Link>
             {(row.original.rating || row.original.feedback) && (
               <button
                 onClick={() => handleViewFeedback(row.original)}
@@ -271,6 +350,13 @@ const AdminSessionsPage = () => {
                 <Eye size={16} />
               </button>
             )}
+            <button
+              onClick={() => openDeleteModal(row.original)}
+              className="p-1.5 text-gray-500 hover:text-red-600"
+              title="Delete Session"
+            >
+              <Trash2 size={16} />
+            </button>
           </div>
         ),
       },
@@ -331,25 +417,35 @@ const AdminSessionsPage = () => {
         <div className="overflow-x-auto">
           <table {...getTableProps()} className="w-full">
             <thead className="bg-gray-50 dark:bg-gray-700">
-              {headerGroups.map((headerGroup) => (
-                <tr {...headerGroup.getHeaderGroupProps()}>
-                  {headerGroup.headers.map((column) => (
-                    <th
-                      {...column.getHeaderProps(column.getSortByToggleProps())}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer"
-                    >
-                      {column.render("Header")}
-                      <span className="ml-1">
-                        {column.isSorted
-                          ? column.isSortedDesc
-                            ? "🔽"
-                            : "🔼"
-                          : ""}
-                      </span>
-                    </th>
-                  ))}
-                </tr>
-              ))}
+              {headerGroups.map((headerGroup) => {
+                const { key, ...restHeaderGroupProps } =
+                  headerGroup.getHeaderGroupProps();
+                return (
+                  <tr key={key} {...restHeaderGroupProps}>
+                    {headerGroup.headers.map((column) => {
+                      const { key, ...restColumnProps } = column.getHeaderProps(
+                        column.getSortByToggleProps()
+                      );
+                      return (
+                        <th
+                          key={key}
+                          {...restColumnProps}
+                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer"
+                        >
+                          {column.render("Header")}
+                          <span className="ml-1">
+                            {column.isSorted
+                              ? column.isSortedDesc
+                                ? "🔽"
+                                : "🔼"
+                              : ""}
+                          </span>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
             </thead>
             <tbody
               {...getTableBodyProps()}
@@ -357,19 +453,25 @@ const AdminSessionsPage = () => {
             >
               {page.map((row) => {
                 prepareRow(row);
+                const { key, ...restRowProps } = row.getRowProps();
                 return (
                   <tr
-                    {...row.getRowProps()}
+                    key={key}
+                    {...restRowProps}
                     className="hover:bg-gray-50 dark:hover:bg-gray-600"
                   >
-                    {row.cells.map((cell) => (
-                      <td
-                        {...cell.getCellProps()}
-                        className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"
-                      >
-                        {cell.render("Cell")}
-                      </td>
-                    ))}
+                    {row.cells.map((cell) => {
+                      const { key, ...restCellProps } = cell.getCellProps();
+                      return (
+                        <td
+                          key={key}
+                          {...restCellProps}
+                          className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300"
+                        >
+                          {cell.render("Cell")}
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })}
@@ -448,6 +550,18 @@ const AdminSessionsPage = () => {
         onClose={() => setFeedbackModalOpen(false)}
         session={selectedSession}
       />
+      {/* --- NEW: Delete Confirmation Modal --- */}
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={closeDeleteModal}
+        onConfirm={handleDeleteSession}
+        title="Confirm Session Deletion"
+      >
+        <p>
+          Are you sure you want to delete this session? This action cannot be
+          undone.
+        </p>
+      </ConfirmationModal>
     </div>
   );
 };

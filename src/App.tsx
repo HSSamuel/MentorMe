@@ -1,5 +1,5 @@
 import React, { Suspense } from "react";
-import { Routes, Route, Navigate, useParams } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -32,7 +32,7 @@ const AdminMatchesPage = React.lazy(() => import("./pages/AdminMatchesPage"));
 const AdminSessionsPage = React.lazy(() => import("./pages/AdminSessionsPage"));
 const DashboardPage = React.lazy(() => import("./pages/DashboardPage"));
 const MessagesPage = React.lazy(() => import("./pages/MessagesPage"));
-const UserProfilePage = React.lazy(() => import("./pages/MentorProfilePage"));
+const MentorProfilePage = React.lazy(() => import("./pages/MentorProfilePage"));
 const AuthCallbackPage = React.lazy(() => import("./pages/AuthCallbackPage"));
 const ForgotPasswordPage = React.lazy(
   () => import("./pages/ForgotPasswordPage")
@@ -50,16 +50,9 @@ const CommunityPage = React.lazy(() => import("./pages/CommunityPage"));
 const PostViewPage = React.lazy(() => import("./pages/PostViewPage"));
 const NewPostPage = React.lazy(() => import("./pages/NewPostPage"));
 const LibraryPage = React.lazy(() => import("./pages/LibraryPage"));
-// --- [NEW] Lazily import the new Admin Resources page ---
 const AdminResourcesPage = React.lazy(
   () => import("./pages/AdminResourcesPage")
 );
-
-// This helper component correctly handles the redirect
-const MentorRedirect = () => {
-  const { id } = useParams();
-  return <Navigate to={`/users/${id}`} replace />;
-};
 
 function App() {
   return (
@@ -79,15 +72,15 @@ function App() {
           {/* Main Application Routes */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
+          {/* FIX: Use a single, semantic route for mentor profiles. This replaces the old /users and /mentor routes. */}
           <Route
-            path="/users/:id"
+            path="/mentor/:mentorId"
             element={
               <ProtectedRoute>
-                <UserProfilePage />
+                <MentorProfilePage />
               </ProtectedRoute>
             }
           />
-          <Route path="/mentor/:id" element={<MentorRedirect />} />
 
           {/* Protected Routes */}
           <Route
@@ -98,6 +91,7 @@ function App() {
               </ProtectedRoute>
             }
           />
+
           <Route
             path="/dashboard"
             element={
@@ -271,7 +265,6 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* --- [NEW] Admin Resources Route --- */}
           <Route
             path="/admin/resources"
             element={

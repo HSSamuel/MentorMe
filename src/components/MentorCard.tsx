@@ -91,8 +91,9 @@ const MentorCard = ({ mentor }: { mentor: Mentor }) => {
 
         {/* View Profile Button */}
         <div className="mt-6 text-center">
+          {/* FIX: This link now points to the correct /mentor/:mentorId route */}
           <Link
-            to={`/users/${mentor.id}`}
+            to={`/mentor/${mentor.id}`}
             className="inline-block rounded-lg bg-indigo-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring focus:ring-indigo-400"
           >
             View Profile
