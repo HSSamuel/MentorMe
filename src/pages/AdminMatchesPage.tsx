@@ -18,6 +18,11 @@ interface ModalState {
   match: Match | null;
 }
 
+// --- [NEW] Spinner Component ---
+const Spinner = () => (
+  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+);
+
 const StatusBadge = ({ status }: { status: string }) => {
   const baseClasses = "px-3 py-1 text-xs font-medium rounded-full";
   let specificClasses = "";
@@ -49,6 +54,14 @@ const ConfirmationModal = ({
   onConfirm,
   title,
   children,
+  isDeleting, // --- UPDATE: Receive isDeleting state ---
+}: {
+  modalState: ModalState;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  children: React.ReactNode;
+  isDeleting: boolean;
 }) => {
   if (!modalState.isOpen) return null;
   return (
@@ -65,11 +78,13 @@ const ConfirmationModal = ({
           >
             Cancel
           </button>
+          {/* --- UPDATE: Show spinner when deleting --- */}
           <button
             onClick={onConfirm}
-            className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+            disabled={isDeleting}
+            className="flex justify-center items-center w-28 px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:bg-red-400"
           >
-            Confirm
+            {isDeleting ? <Spinner /> : "Confirm"}
           </button>
         </div>
       </div>
@@ -136,6 +151,8 @@ const AdminMatchesPage = () => {
     isOpen: false,
     match: null,
   });
+  // --- NEW: State for delete loading ---
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchMatches = useCallback(async () => {
     setIsLoading(true);
@@ -156,6 +173,8 @@ const AdminMatchesPage = () => {
   // --- [NEW] Handler functions for modal actions ---
   const handleDeleteRequest = async () => {
     if (!deleteModalState.match) return;
+    // --- UPDATE: Set deleting state ---
+    setIsDeleting(true);
     try {
       await apiClient.delete(`/admin/requests/${deleteModalState.match.id}`);
       toast.success("Request deleted successfully.");
@@ -163,6 +182,8 @@ const AdminMatchesPage = () => {
     } catch (err) {
       toast.error("Failed to delete request.");
     } finally {
+      // --- UPDATE: Reset deleting state and close modal ---
+      setIsDeleting(false);
       setDeleteModalState({ isOpen: false, match: null });
     }
   };
@@ -281,6 +302,7 @@ const AdminMatchesPage = () => {
         onClose={() => setDeleteModalState({ isOpen: false, match: null })}
         onConfirm={handleDeleteRequest}
         title="Confirm Deletion"
+        isDeleting={isDeleting} // --- UPDATE: Pass state to modal ---
       >
         <p>
           Are you sure you want to delete this pending request? This action

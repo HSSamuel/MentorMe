@@ -38,6 +38,11 @@ interface User {
   profile: Profile;
 }
 
+// --- NEW: Spinner Component ---
+const Spinner = () => (
+  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+);
+
 const roleStyles = {
   MENTEE: {
     icon: <UserIcon size={14} className="mr-1.5" />,
@@ -61,12 +66,14 @@ const ConfirmationModal = ({
   onConfirm,
   title,
   children,
+  isDeleting, // --- UPDATE: Receive isDeleting state ---
 }: {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void;
   title: string;
   children: React.ReactNode;
+  isDeleting: boolean;
 }) => {
   if (!isOpen) return null;
   return (
@@ -83,11 +90,13 @@ const ConfirmationModal = ({
           >
             Cancel
           </button>
+          {/* --- UPDATE: Show spinner when deleting --- */}
           <button
             onClick={onConfirm}
-            className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700"
+            disabled={isDeleting}
+            className="flex justify-center items-center w-28 px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:bg-red-400"
           >
-            Confirm
+            {isDeleting ? <Spinner /> : "Confirm"}
           </button>
         </div>
       </div>
@@ -102,7 +111,7 @@ const EditUserModal = ({
   user,
   selectedRole,
   setSelectedRole,
-  isSaving, // --- UPDATE: Receive isSaving state as a prop ---
+  isSaving,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -169,8 +178,9 @@ const AdminUsersPage: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<UserRole>("MENTEE");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  // --- UPDATE: State for saving is now managed here ---
   const [isSaving, setIsSaving] = useState(false);
+  // --- NEW: State for delete loading ---
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     if (!loading) {
@@ -200,7 +210,7 @@ const AdminUsersPage: React.FC = () => {
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
 
   const openDeleteModal = (user: User) => {
     setUserToAction(user);
@@ -214,6 +224,8 @@ const AdminUsersPage: React.FC = () => {
 
   const handleDeleteUser = async () => {
     if (!userToAction) return;
+    // --- UPDATE: Set deleting state ---
+    setIsDeleting(true);
     try {
       await apiClient.delete(`/admin/users/${userToAction.id}`);
       setUsers((prevUsers) =>
@@ -224,6 +236,8 @@ const AdminUsersPage: React.FC = () => {
       toast.error(`Failed to delete user ${userToAction.profile.name}.`);
       console.error(err);
     } finally {
+      // --- UPDATE: Reset deleting state and close modal ---
+      setIsDeleting(false);
       closeDeleteModal();
     }
   };
@@ -241,7 +255,7 @@ const AdminUsersPage: React.FC = () => {
 
   const handleUpdateRole = async () => {
     if (!userToEdit) return;
-    setIsSaving(true); // --- UPDATE: Set saving state ---
+    setIsSaving(true);
     try {
       const response = await apiClient.put(
         `/admin/users/${userToEdit.id}/role`,
@@ -257,7 +271,7 @@ const AdminUsersPage: React.FC = () => {
       toast.error(`Failed to update role for ${userToEdit.profile.name}.`);
       console.error(err);
     } finally {
-      setIsSaving(false); // --- UPDATE: Reset saving state ---
+      setIsSaving(false);
     }
   };
 
@@ -315,7 +329,7 @@ const AdminUsersPage: React.FC = () => {
         Cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <Link
-              to={`/users/${row.original.id}`}
+              to={`/mentor/${row.original.id}`}
               target="_blank"
               className="p-1.5 text-gray-500 hover:text-blue-600"
               title="View Profile"
@@ -382,7 +396,7 @@ const AdminUsersPage: React.FC = () => {
             User Management
           </h1>
           <button
-            onClick={fetchUsers}
+            onClick={() => fetchUsers()}
             disabled={isRefreshing}
             className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-indigo-600 bg-indigo-100 rounded-md hover:bg-indigo-200"
           >
@@ -394,7 +408,7 @@ const AdminUsersPage: React.FC = () => {
         </div>
 
         <div className="mb-8 relative">
-          <Search className="absolute left-3.5 top-1.2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
           <input
             type="text"
             placeholder="Search by name, email, or role..."
@@ -408,27 +422,34 @@ const AdminUsersPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table {...getTableProps()} className="w-full">
               <thead className="bg-gray-50 dark:bg-gray-700">
-                {headerGroups.map((headerGroup) => (
-                  <tr {...headerGroup.getHeaderGroupProps()}>
-                    {headerGroup.headers.map((column) => (
-                      <th
-                        {...column.getHeaderProps(
-                          column.getSortByToggleProps()
-                        )}
-                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer"
-                      >
-                        {column.render("Header")}
-                        <span className="ml-1">
-                          {column.isSorted
-                            ? column.isSortedDesc
-                              ? "🔽"
-                              : "🔼"
-                            : ""}
-                        </span>
-                      </th>
-                    ))}
-                  </tr>
-                ))}
+                {headerGroups.map((headerGroup) => {
+                  const { key, ...restHeaderGroupProps } =
+                    headerGroup.getHeaderGroupProps();
+                  return (
+                    <tr key={key} {...restHeaderGroupProps}>
+                      {headerGroup.headers.map((column) => {
+                        const { key, ...restColumnProps } =
+                          column.getHeaderProps(column.getSortByToggleProps());
+                        return (
+                          <th
+                            key={key}
+                            {...restColumnProps}
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer"
+                          >
+                            {column.render("Header")}
+                            <span className="ml-1">
+                              {column.isSorted
+                                ? column.isSortedDesc
+                                  ? "🔽"
+                                  : "🔼"
+                                : ""}
+                            </span>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </thead>
               <tbody
                 {...getTableBodyProps()}
@@ -436,19 +457,25 @@ const AdminUsersPage: React.FC = () => {
               >
                 {page.map((row) => {
                   prepareRow(row);
+                  const { key, ...restRowProps } = row.getRowProps();
                   return (
                     <tr
-                      {...row.getRowProps()}
+                      key={key}
+                      {...restRowProps}
                       className="hover:bg-gray-50 dark:hover:bg-gray-600"
                     >
-                      {row.cells.map((cell) => (
-                        <td
-                          {...cell.getCellProps()}
-                          className="px-6 py-4 whitespace-nowrap text-sm"
-                        >
-                          {cell.render("Cell")}
-                        </td>
-                      ))}
+                      {row.cells.map((cell) => {
+                        const { key, ...restCellProps } = cell.getCellProps();
+                        return (
+                          <td
+                            key={key}
+                            {...restCellProps}
+                            className="px-6 py-4 whitespace-nowrap text-sm"
+                          >
+                            {cell.render("Cell")}
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 })}
@@ -522,6 +549,7 @@ const AdminUsersPage: React.FC = () => {
           onClose={closeDeleteModal}
           onConfirm={handleDeleteUser}
           title="Confirm User Deletion"
+          isDeleting={isDeleting} // --- UPDATE: Pass state to modal ---
         >
           <p>
             Are you sure you want to delete this user:{" "}

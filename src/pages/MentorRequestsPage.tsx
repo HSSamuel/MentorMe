@@ -148,8 +148,9 @@ const MentorRequestsPage = () => {
                   req.status
                 )}`}
               >
+                {/* FIX: This link now points to the correct /mentor/:mentorId route */}
                 <Link
-                  to={`/users/${req.mentee.id}`}
+                  to={`/mentor/${req.mentee.id}`}
                   className="block hover:bg-gray-50/50 dark:hover:bg-gray-700/20"
                 >
                   <div className="p-4 sm:p-6">

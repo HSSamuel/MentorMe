@@ -246,7 +246,8 @@ const MentorProfilePage = () => {
             )}
           </div>
 
-          <div className="border-t dark:border-gray-700 px-8 py-6 space-y-6">
+          {/* --- UPDATE: Added 'text-center' to this container --- */}
+          <div className="border-t dark:border-gray-700 px-8 py-6 space-y-6 text-center">
             <div>
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
                 About Me
@@ -262,7 +263,8 @@ const MentorProfilePage = () => {
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">
                     Skills & Expertise
                   </h3>
-                  <div className="flex flex-wrap gap-2">
+                  {/* --- UPDATE: Added 'justify-center' to center the skill tags --- */}
+                  <div className="flex flex-wrap gap-2 justify-center">
                     {profileUser.profile.skills.map((skill: string) => (
                       <span
                         key={skill}
