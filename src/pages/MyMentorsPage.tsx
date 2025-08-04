@@ -2,11 +2,19 @@ import React, { useState, useEffect } from "react";
 import apiClient from "../api/axios";
 import { Link } from "react-router-dom";
 import GoalManagement from "../components/GoalManagement";
+import GoalModal from "../components/GoalModal";
+import toast from "react-hot-toast";
 
 const MyMentorsPage = () => {
   const [matches, setMatches] = useState<any[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<any>(null);
+  const [goalKey, setGoalKey] = useState(0);
+  // --- [NEW] State to manage the spinner on the save button ---
+  const [isSavingGoal, setIsSavingGoal] = useState(false);
 
   useEffect(() => {
     const fetchMatches = async () => {
@@ -44,36 +52,69 @@ const MyMentorsPage = () => {
     )}&background=random&color=fff`;
   };
 
-  // --- [THIS IS THE FIX] ---
-  // This function is now more robust and includes a crucial debugging step.
   const formatDate = (dateString: string | null | undefined) => {
-    // 1. Check if the dateString is valid.
     if (!dateString) {
-      // Log the issue to the console to help with debugging.
       console.error(
         "Received an invalid date value from the backend:",
         dateString
       );
-      return "Date not available"; // Provide a user-friendly fallback.
+      return "Date not available";
     }
 
-    // 2. Attempt to create a date object.
     const date = new Date(dateString);
 
-    // 3. Check if the created date is valid.
     if (isNaN(date.getTime())) {
       console.error("Could not parse the following date string:", dateString);
       return "Invalid Date";
     }
 
-    // 4. If everything is valid, format the date.
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
   };
-  // --- END OF FIX ---
+
+  // --- [NEW] This function now contains the logic to save the goal ---
+  const handleSaveGoal = async (goalData: any) => {
+    if (!selectedMatch) {
+      toast.error("No mentor selected.");
+      return;
+    }
+
+    // --- [NEW] Console log to detect issues ---
+    console.log(
+      "Saving goal for mentorshipId:",
+      selectedMatch.id,
+      "with data:",
+      goalData
+    );
+
+    setIsSavingGoal(true);
+    try {
+      if (editingGoal) {
+        // Logic to update an existing goal
+        await apiClient.put(`/goals/${editingGoal.id}`, goalData);
+        toast.success("Goal updated successfully!");
+      } else {
+        // Logic to create a new goal
+        await apiClient.post("/goals", {
+          ...goalData,
+          mentorshipRequestId: selectedMatch.id,
+        });
+        toast.success("Goal added successfully!");
+      }
+      // Refresh the list of goals after saving
+      setGoalKey((prevKey) => prevKey + 1);
+      setIsGoalModalOpen(false);
+      setEditingGoal(null);
+    } catch (error) {
+      console.error("Failed to save goal:", error);
+      toast.error("Failed to save goal.");
+    } finally {
+      setIsSavingGoal(false);
+    }
+  };
 
   if (isLoading)
     return <p className="text-center text-gray-500">Loading your mentors...</p>;
@@ -89,10 +130,6 @@ const MyMentorsPage = () => {
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
               <ul className="divide-y divide-gray-200 dark:divide-gray-700">
                 {matches.map((match) => {
-                  // --- [DEBUGGING STEP] ---
-                  // This will show you the exact data for each match in the console.
-                  console.log("Match object from API:", match);
-                  // ------------------------
                   return (
                     <li key={match.id}>
                       <button
@@ -152,7 +189,18 @@ const MyMentorsPage = () => {
                   </Link>
                 </div>
                 <div className="bg-white/50 dark:bg-gray-800/50 p-6 rounded-lg">
-                  <GoalManagement mentorshipId={selectedMatch.id} />
+                  <GoalManagement
+                    key={goalKey}
+                    mentorshipId={selectedMatch.id}
+                    onAddGoal={() => {
+                      setEditingGoal(null);
+                      setIsGoalModalOpen(true);
+                    }}
+                    onEditGoal={(goal) => {
+                      setEditingGoal(goal);
+                      setIsGoalModalOpen(true);
+                    }}
+                  />
                 </div>
               </div>
             ) : (
@@ -177,6 +225,17 @@ const MyMentorsPage = () => {
             Find a Mentor
           </Link>
         </div>
+      )}
+
+      {/* --- UPDATE: The GoalModal now receives the correct save function and loading state --- */}
+      {selectedMatch && (
+        <GoalModal
+          isOpen={isGoalModalOpen}
+          onClose={() => setIsGoalModalOpen(false)}
+          onSave={handleSaveGoal}
+          goal={editingGoal}
+          isSubmitting={isSavingGoal}
+        />
       )}
     </div>
   );

@@ -232,7 +232,7 @@ const MessagesPage = () => {
 
   const selectConnection = async (otherUserId: string) => {
     if (!chatClient || !user?.id) return;
-    setShowIcebreakers(false); // Reset on new selection
+    setShowIcebreakers(false);
     setIcebreakers([]);
     try {
       const channel = chatClient.channel("messaging", {

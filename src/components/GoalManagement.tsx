@@ -6,7 +6,15 @@ import GoalModal from "./GoalModal";
 import { Plus } from "lucide-react";
 import toast from "react-hot-toast";
 
-const GoalManagement = () => {
+const GoalManagement = ({
+  mentorshipId,
+  onAddGoal,
+  onEditGoal,
+}: {
+  mentorshipId?: string;
+  onAddGoal?: () => void;
+  onEditGoal?: (goal: any) => void;
+}) => {
   const { user } = useAuth();
   const [allGoals, setAllGoals] = useState<any[]>([]);
   const [filteredGoals, setFilteredGoals] = useState<any[]>([]);
@@ -14,14 +22,30 @@ const GoalManagement = () => {
   const [selectedMentorshipId, setSelectedMentorshipId] = useState<
     string | null
   >(null);
-  const [isModalOpen, setModalOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInternalModalOpen, setInternalModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchGoalsAndMentorships = useCallback(async () => {
+    if (mentorshipId) {
+      setIsLoading(true);
+      try {
+        const goalsRes = await apiClient.get(
+          `/goals/mentorship/${mentorshipId}`
+        );
+        setAllGoals(goalsRes.data);
+        setFilteredGoals(goalsRes.data);
+      } catch (error) {
+        console.error("Failed to fetch goals:", error);
+        toast.error("Could not load your goals.");
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // --- FIX: Fetch all goals and all connections separately ---
       const [goalsRes, connectionsRes] = await Promise.all([
         apiClient.get("/goals"),
         apiClient.get("/users/connections"),
@@ -30,7 +54,6 @@ const GoalManagement = () => {
       setAllGoals(goalsRes.data);
       setMentorships(connectionsRes.data);
 
-      // If there are connections, select the first one by default
       if (connectionsRes.data.length > 0) {
         setSelectedMentorshipId(connectionsRes.data[0].id);
       }
@@ -40,14 +63,20 @@ const GoalManagement = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [mentorshipId]);
 
   useEffect(() => {
     fetchGoalsAndMentorships();
   }, [fetchGoalsAndMentorships]);
 
-  // This effect runs when the selected mentorship changes, filtering the goals
   useEffect(() => {
+    if (mentorshipId) {
+      setFilteredGoals(
+        allGoals.filter((goal) => goal.mentorshipRequestId === mentorshipId)
+      );
+      return;
+    }
+
     if (selectedMentorshipId) {
       const relevantGoals = allGoals.filter(
         (goal) =>
@@ -55,14 +84,10 @@ const GoalManagement = () => {
           goal.mentorshipRequest?.menteeId === selectedMentorshipId
       );
       setFilteredGoals(relevantGoals);
-    } else if (mentorships.length === 0) {
-      // If there are no mentorships, show all goals (or none if there are none)
-      setFilteredGoals(allGoals);
     } else {
-      // Handle the case where a mentorship is deselected but others exist
-      setFilteredGoals([]);
+      setFilteredGoals(mentorships.length === 0 ? allGoals : []);
     }
-  }, [selectedMentorshipId, allGoals, mentorships]);
+  }, [selectedMentorshipId, allGoals, mentorships, mentorshipId]);
 
   const handleSaveGoal = async (goalData: any) => {
     try {
@@ -76,14 +101,16 @@ const GoalManagement = () => {
         );
         toast.success("Goal updated!");
       } else {
-        // Find the correct mentorship request ID based on the selected connection
+        const finalMentorshipUserId = mentorshipId || selectedMentorshipId;
         const selectedConnection = mentorships.find(
-          (m) => m.id === selectedMentorshipId
+          (m) => m.id === finalMentorshipUserId
         );
         const mentorshipRequestId = selectedConnection?.mentorshipRequestId;
 
         if (!mentorshipRequestId) {
-          toast.error("Could not find the associated mentorship.");
+          toast.error(
+            "Could not find the associated mentorship to save this goal."
+          );
           return;
         }
 
@@ -94,7 +121,7 @@ const GoalManagement = () => {
         setAllGoals([...allGoals, newGoal]);
         toast.success("Goal added!");
       }
-      setIsModalOpen(false);
+      setInternalModalOpen(false);
       setEditingGoal(null);
     } catch (error) {
       console.error("Failed to save goal:", error);
@@ -102,18 +129,12 @@ const GoalManagement = () => {
     }
   };
 
-  const handleToggleComplete = async (goal: any) => {
-    try {
-      const { data: updatedGoal } = await apiClient.put(`/goals/${goal.id}`, {
-        isCompleted: !goal.isCompleted,
-      });
-      setAllGoals(
-        allGoals.map((g) => (g.id === updatedGoal.id ? updatedGoal : g))
-      );
-    } catch (error) {
-      console.error("Failed to update goal status:", error);
-      toast.error("Could not update goal status.");
-    }
+  // --- [FIX] This new function will handle updates from the GoalList component ---
+  const handleGoalUpdate = (updatedGoal: any) => {
+    setAllGoals((prevGoals) =>
+      prevGoals.map((g) => (g.id === updatedGoal.id ? updatedGoal : g))
+    );
+    toast.success("Goal status updated!");
   };
 
   const handleDeleteGoal = async (goalId: string) => {
@@ -137,105 +158,66 @@ const GoalManagement = () => {
         <h3 className="text-xl font-bold text-gray-700 dark:text-gray-200">
           Our Goals
         </h3>
-        {mentorships.length > 0 && (
-          <button
-            onClick={() => {
+        <button
+          onClick={() => {
+            if (onAddGoal) {
+              onAddGoal();
+            } else {
               setEditingGoal(null);
-              setIsModalOpen(true);
-            }}
-            className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
-          >
-            + Add New Goal
-          </button>
-        )}
+              setInternalModalOpen(true);
+            }
+          }}
+          className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+        >
+          <Plus size={16} /> Add New Goal
+        </button>
       </div>
 
-      {mentorships.length > 0 ? (
-        <>
-          <div className="mb-4">
-            <label htmlFor="mentorship-select" className="sr-only">
-              Select a mentorship
-            </label>
-            <select
-              id="mentorship-select"
-              value={selectedMentorshipId || ""}
-              onChange={(e) => setSelectedMentorshipId(e.target.value)}
-              className="w-full p-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
-            >
-              {mentorships.map((m) => (
-                <option key={m.id} value={m.id}>
-                  Goals with {m.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-3">
-            {filteredGoals.length > 0 ? (
-              filteredGoals.map((goal) => (
-                <div
-                  key={goal.id}
-                  className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg flex items-center justify-between"
-                >
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={goal.isCompleted}
-                      onChange={() => handleToggleComplete(goal)}
-                      className="h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <p
-                      className={`ml-4 ${
-                        goal.isCompleted
-                          ? "line-through text-gray-400"
-                          : "text-gray-800 dark:text-gray-100"
-                      }`}
-                    >
-                      {goal.title}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setEditingGoal(goal);
-                        setIsModalOpen(true);
-                      }}
-                      className="text-sm text-blue-500 hover:underline"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDeleteGoal(goal.id)}
-                      className="text-sm text-red-500 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 dark:text-gray-400 text-center py-4">
-                No goals set for this mentorship yet.
-              </p>
-            )}
-          </div>
-        </>
-      ) : (
-        <p className="text-gray-500 dark:text-gray-400 text-center py-4">
-          You need an active mentorship to set goals.
-        </p>
+      {!mentorshipId && mentorships.length > 0 && (
+        <div className="mb-4">
+          <label htmlFor="mentorship-select" className="sr-only">
+            Select a mentorship
+          </label>
+          <select
+            id="mentorship-select"
+            value={selectedMentorshipId || ""}
+            onChange={(e) => setSelectedMentorshipId(e.target.value)}
+            className="w-full p-2 border rounded-md dark:bg-gray-700 dark:text-white dark:border-gray-600"
+          >
+            {mentorships.map((m) => (
+              <option key={m.id} value={m.id}>
+                Goals with {m.name}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
 
-      {isModalOpen && (
-        <GoalModal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false);
-            setEditingGoal(null);
-          }}
-          onSave={handleSaveGoal}
-          goal={editingGoal}
-        />
-      )}
+      {/* --- [FIX] Pass the correct 'onUpdate' prop to the GoalList --- */}
+      <GoalList
+        goals={filteredGoals}
+        onUpdate={handleGoalUpdate}
+        onEdit={(goal) => {
+          if (onEditGoal) {
+            onEditGoal(goal);
+          } else {
+            setEditingGoal(goal);
+            setInternalModalOpen(true);
+          }
+        }}
+        onDelete={handleDeleteGoal}
+      />
+
+      <GoalModal
+        isOpen={isInternalModalOpen}
+        onClose={() => {
+          setInternalModalOpen(false);
+          setEditingGoal(null);
+        }}
+        onSave={handleSaveGoal}
+        goal={editingGoal}
+        mentorshipId={selectedMentorshipId}
+      />
     </div>
   );
 };
