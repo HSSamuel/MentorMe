@@ -66,7 +66,7 @@ const ConfirmationModal = ({
   onConfirm,
   title,
   children,
-  isDeleting, // --- UPDATE: Receive isDeleting state ---
+  isDeleting,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -90,7 +90,6 @@ const ConfirmationModal = ({
           >
             Cancel
           </button>
-          {/* --- UPDATE: Show spinner when deleting --- */}
           <button
             onClick={onConfirm}
             disabled={isDeleting}
@@ -179,7 +178,6 @@ const AdminUsersPage: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  // --- NEW: State for delete loading ---
   const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchUsers = useCallback(async () => {
@@ -224,7 +222,6 @@ const AdminUsersPage: React.FC = () => {
 
   const handleDeleteUser = async () => {
     if (!userToAction) return;
-    // --- UPDATE: Set deleting state ---
     setIsDeleting(true);
     try {
       await apiClient.delete(`/admin/users/${userToAction.id}`);
@@ -236,7 +233,6 @@ const AdminUsersPage: React.FC = () => {
       toast.error(`Failed to delete user ${userToAction.profile.name}.`);
       console.error(err);
     } finally {
-      // --- UPDATE: Reset deleting state and close modal ---
       setIsDeleting(false);
       closeDeleteModal();
     }
@@ -407,12 +403,13 @@ const AdminUsersPage: React.FC = () => {
           </button>
         </div>
 
+        {/* --- UPDATE: Added dark mode classes and corrected icon positioning --- */}
         <div className="mb-8 relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-gray-500" />
           <input
             type="text"
             placeholder="Search by name, email, or role..."
-            className="w-full p-3 pl-12 border rounded-lg"
+            className="w-full p-3 pl-12 border rounded-lg bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-200 focus:ring-2 focus:ring-indigo-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -549,7 +546,7 @@ const AdminUsersPage: React.FC = () => {
           onClose={closeDeleteModal}
           onConfirm={handleDeleteUser}
           title="Confirm User Deletion"
-          isDeleting={isDeleting} // --- UPDATE: Pass state to modal ---
+          isDeleting={isDeleting}
         >
           <p>
             Are you sure you want to delete this user:{" "}

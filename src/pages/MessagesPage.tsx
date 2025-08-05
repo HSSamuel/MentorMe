@@ -46,7 +46,8 @@ const ConversationList = ({ connections, onSelectConversation }) => {
   const navigate = useNavigate();
   const handleAvatarClick = (e, userId) => {
     e.stopPropagation();
-    navigate(`/users/${userId}`);
+    // --- FIX: This now navigates to the correct /mentor/:mentorId route ---
+    navigate(`/mentor/${userId}`);
   };
   return (
     <div className="w-full h-full flex-col flex-shrink-0 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
