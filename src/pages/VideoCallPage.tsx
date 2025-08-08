@@ -164,7 +164,6 @@ const VideoCallPage = () => {
 
     const fetchAllData = async () => {
       try {
-        // --- FIX: Added the Authorization header to BOTH API calls ---
         const [sessionDetailsRes, tokenRes] = await Promise.all([
           axios.get(`/sessions/${sessionId}`, {
             headers: { Authorization: `Bearer ${authToken}` },
