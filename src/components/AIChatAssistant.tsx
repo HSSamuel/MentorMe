@@ -182,8 +182,7 @@ const helpArticles = [
   },
   {
     title: "Get In Touch",
-    content:
-      "You can reach me via [WhatsApp](https://wa.me/2348084737049).",
+    content: "You can reach me via [WhatsApp](https://wa.me/2348084737049).",
   },
 ];
 
@@ -225,7 +224,7 @@ const AIChatAssistant = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showEmojiPalette, setShowEmojiPalette] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [selectedAI, setSelectedAI] = useState("gemini");
+  // [CHANGE] Removed the 'selectedAI' state variable (line 263)
   const [helpView, setHelpView] = useState("list");
   const [currentArticle, setCurrentArticle] = useState({
     title: "",
@@ -325,8 +324,10 @@ const AIChatAssistant = () => {
           headers: { "Content-Type": "multipart/form-data" },
         });
       } else {
-        const endpoint =
-          selectedAI === "cohere" ? "/ai/chat/cohere" : "/ai/chat";
+        // [CHANGE] Hardcoded the Cohere endpoint
+        const endpoint = "/ai/chat/cohere";
+        // const endpoint =
+        //   selectedAI === "cohere" ? "/ai/chat/cohere" : "/ai/chat";
         response = await apiClient.post(endpoint, {
           message: currentInput,
           conversationId: activeConversationId,
@@ -603,7 +604,8 @@ const AIChatAssistant = () => {
 
           {activeTab === "chat" && (
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="p-2 border-b dark:border-gray-700">
+              {/* [CHANGE] Commented out the AI provider dropdown */}
+              {/* <div className="p-2 border-b dark:border-gray-700">
                 <select
                   value={selectedAI}
                   onChange={(e) => setSelectedAI(e.target.value)}
@@ -612,7 +614,7 @@ const AIChatAssistant = () => {
                   <option value="gemini">Gemini (Recommended)</option>
                   <option value="cohere">Cohere</option>
                 </select>
-              </div>
+              </div> */}
               <div className="flex-1 p-4 overflow-y-auto space-y-4">
                 {messages.length === 0 && !isLoading && (
                   <div className="text-center p-8">
