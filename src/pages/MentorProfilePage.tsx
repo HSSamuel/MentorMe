@@ -129,9 +129,7 @@ const MentorProfilePage = () => {
     };
 
     fetchProfileData();
-  }, [mentorId]); // Removed 'user' from dependency array to prevent re-fetching on auth state changes
-
-  // ... (rest of the component is unchanged)
+  }, [mentorId]); 
 
   const handleRequestMentorship = async () => {
     setRequestError("");

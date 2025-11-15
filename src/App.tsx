@@ -2,6 +2,7 @@ import React, { Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { Toaster } from "react-hot-toast"; // --- ADDED THIS IMPORT ---
 
 // A loader for Suspense fallback
 const PageLoader = () => (
@@ -57,6 +58,53 @@ const AdminResourcesPage = React.lazy(
 function App() {
   return (
     <Layout>
+      {/* --- ADDED THIS ENTIRE TOASTER COMPONENT --- */}
+      <Toaster
+        position="top-right"
+        reverseOrder={false}
+        toastOptions={{
+          // Define default options
+          duration: 5000,
+          style: {
+            background: "#363636",
+            color: "#fff",
+            borderRadius: "10px",
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+          },
+
+          // --- Styles for specific toast types ---
+
+          // Success Toast (like your image)
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: "#10B981", // Green icon color
+              secondary: "#FFFFFF", // White checkmark
+            },
+            style: {
+              background: "#F0FDF4", // Light green background
+              color: "#14532D", // Dark green text
+              border: "1px solid #10B981",
+            },
+          },
+
+          // Error Toast
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: "#EF4444", // Red icon color
+              secondary: "#FFFFFF", // White 'X'
+            },
+            style: {
+              background: "#FEF2F2", // Light red background
+              color: "#7F1D1D", // Dark red text
+              border: "1px solid #EF4444",
+            },
+          },
+        }}
+      />
+      {/* --- END OF ADDED CODE --- */}
+
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public Auth Routes */}
