@@ -2,6 +2,14 @@
   command = "npm run build"
   publish = "dist"
 
+# Rule 1: Proxy API requests to your Render Backend
+[[redirects]]
+  from = "/api/*"
+  to = "https://mentorme-backend-hbez.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+# Rule 2: Handle React Routing (keep this at the bottom)
 [[redirects]]
   from = "/*"
   to = "/index.html"
