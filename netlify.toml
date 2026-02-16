@@ -5,7 +5,7 @@
 # Rule 1: Proxy API requests to your Render Backend
 [[redirects]]
   from = "/api/*"
-  to = "https://mentorme-xlcr.onrender.com/api/:splat"
+  to = "https://mentorme-backend-hbez.onrender.com/api/:splat"
   status = 200
   force = true
 
